@@ -1,0 +1,14 @@
+{
+  "name": "reckon",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Monitors tokenized real-world assets on Solana against what their issuers and regulators publish.",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "start": "node src/server.ts",
+    "once": "node src/cli.ts once",
+    "record": "node scripts/record.ts",
+    "test": "node --test test/*.test.ts"
+  }
+}

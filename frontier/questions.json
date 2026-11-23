@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "about": "Five questions about USTB where a model without live data should be wrong or unable to answer. The ground truth is Reckon's own reading, stamped with a time and the check rows it came from. Nothing in this file is a model result.",
+  "grading": {
+    "dates_and_addresses": "exact match",
+    "numbers": "relative tolerance set before any run: 0.1% for supply and AUM, 1% for NAV",
+    "outcomes_counted_separately": ["correct", "confidently wrong", "abstained or said it cannot know"],
+    "note": "An honest abstention is not an error. Models run with tools off, several runs each, and the raw outputs are stored."
+  },
+  "questions": [
+    { "id": "q1", "text": "What is the current total supply of the USTB token on Solana (mint CCz3SG...sVcjo2)?", "needs": ["Solana RPC read"] },
+    { "id": "q2", "text": "Who holds the freeze authority on that USTB mint, and are new USTB token accounts frozen by default?", "needs": ["Token-2022 extension read"] },
+    { "id": "q3", "text": "When was the latest Form D amendment filed for the fund behind USTB, and under which CIK?", "needs": ["SEC filing list"] },
+    { "id": "q4", "text": "What share of USTB's assets under management sits on Solana, and what is the AUM?", "needs": ["Issuer page"] },
+    { "id": "q5", "text": "What was USTB's NAV per share yesterday, and does the on-chain supply match the issuer's reported tokens outstanding?", "needs": ["Issuer page", "Solana RPC read"] }
+  ]
+}
