@@ -1,6 +1,6 @@
 {
   "status": "not run",
-  "note": "No model has been called. A separate step fills this file with runs: { model, date, tools, runs: [{ question, output, outcome }] }.",
+  "note": "No model has been called. A separate step will add the models, the dates, whether tools were on, and each run's output and outcome.",
   "models": [],
   "runs": []
 }

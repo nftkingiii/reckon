@@ -127,7 +127,7 @@ async function renderDetail(id) {
     const rows = r.checks.filter((c) => c.group === k);
     return rows.length ? `<section class="group"><h3>${label}</h3>${rows.map(checkRow).join("")}</section>` : "";
   }).join("");
-  const cannot = r.cannotCheck.map((x) => `<b>${esc(x.what)}</b>. ${esc(x.why)}`);
+  const cannot = r.cannotCheck.map((x) => `<b>${esc(x.what.charAt(0).toUpperCase() + x.what.slice(1))}</b>. ${esc(x.why)}`);
   const est = r.established.map((x) => esc(x.length > 220 ? x.slice(0, 217) + "..." : x));
   const flg = r.flagged.map((x) => esc(x));
   app.innerHTML = `
@@ -169,14 +169,14 @@ async function renderFrontier() {
         .map(
           (r) => `<tr>
         <td data-l="Question">${esc(r.text)}</td>
-        <td data-l="Reckon's reading">${r.truth ? `${esc(r.truth)}<div class="muted" style="font-size:13px;margin-top:4px">${esc(r.basis)}. As of ${esc(r.asOf && r.asOf.length > 10 ? when(r.asOf) : r.asOf)}.</div>` : `<span class="muted">No reading available. ${esc(r.basis)}</span>`}</td>
+        <td data-l="Reckon's reading">${r.truth ? `${esc(r.truth)}<div class="muted" style="font-size:13px;margin-top:4px">${esc(r.basis.replace(/\.$/, ""))}. As of ${esc(r.asOf && r.asOf.length > 10 ? when(r.asOf) : r.asOf)}.</div>` : `<span class="muted">No reading available. ${esc(r.basis)}</span>`}</td>
         <td data-l="Model answers" class="na">${ran ? "see runs" : "Not run"}</td></tr>`,
         )
         .join("")}</tbody></table></div>
     <section class="prose"><h2>How the comparison will be graded</h2>
       <ul>
         <li>Dates and addresses: exact match.</li>
-        <li>${esc(f.grading.numbers)}.</li>
+        <li>Numbers: ${esc(f.grading.numbers)}.</li>
         <li>Three outcomes are counted separately: ${f.grading.outcomes_counted_separately.map(esc).join(", ")}.</li>
         <li>${esc(f.grading.note)}</li>
       </ul></section>`;
