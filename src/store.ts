@@ -2,7 +2,7 @@
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { controls, extension, supplyText, type MintState } from "./solana.ts";
-import type { AssetReport, Cell, Change, HistoryEntry } from "./types.ts";
+import type { AssetReport, Cell, Change, CheckRow, HistoryEntry } from "./types.ts";
 import { canon, sha256 } from "./util.ts";
 
 export interface EntityFact {
@@ -75,6 +75,27 @@ export class Store {
   }
   private path(assetId: string, ...rest: string[]): string {
     return join(this.dir, assetId, ...rest);
+  }
+  readJson<T>(name: string): T | null {
+    const p = join(this.dir, name);
+    if (!existsSync(p)) return null;
+    try {
+      return JSON.parse(readFileSync(p, "utf8")) as T;
+    } catch {
+      return null;
+    }
+  }
+  writeJson(name: string, value: unknown): void {
+    mkdirSync(this.dir, { recursive: true });
+    writeFileSync(join(this.dir, name), JSON.stringify(value));
+  }
+  /** The rows bought in the most recent paid pass for an asset, kept so free passes can show them again, labelled. */
+  paid(assetId: string): { at: string; rows: Record<string, CheckRow> } | null {
+    return this.readJson(join(assetId, "paid.json"));
+  }
+  savePaid(assetId: string, value: { at: string; rows: Record<string, CheckRow> }): void {
+    mkdirSync(this.path(assetId), { recursive: true });
+    this.writeJson(join(assetId, "paid.json"), value);
   }
   latest(assetId: string): Snapshot | null {
     const p = this.path(assetId, "latest.json");

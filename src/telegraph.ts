@@ -2,6 +2,8 @@
 // The escrow ask follows Ballast's: POST /engine/v1/ask/{minerId}, read the signed 402 challenge, sign its message, retry
 // with X-PAYMENT, read the receipt from X-PAYMENT-RESPONSE. Reckon never holds a key; a signer module supplies personalSign.
 import { pathToFileURL } from "node:url";
+import { signerFromKey } from "./signer.ts";
+import type { BuyGovernor } from "./governor.ts";
 import type { Fetch } from "./net.ts";
 import type { Receipt, TelegraphCall, TelegraphLeg } from "./types.ts";
 import { errText, iso } from "./util.ts";
@@ -144,8 +146,22 @@ export function createEngineTransport(signer: EscrowSigner, http: Fetch = fetch,
   };
 }
 
-/** A signer from a local module that default-exports { address, personalSign(message) }. Keys stay in that module, never in Reckon. */
+/**
+ * Available escrow of a wallet in USD, from the node ledger (keyless GET /v1/ledger/account/{address}). Amounts are
+ * micro-USDC strings. Anything that is not a non-negative whole number throws, so a caller that needs a floor refuses.
+ */
+export async function readLedgerAvailableUsd(address: string, http: Fetch = fetch, base = DEVNODE): Promise<number> {
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) throw new TransportError("not a wallet address");
+  const res = await http(`${base}/v1/ledger/account/${address}`, { signal: AbortSignal.timeout(10_000) });
+  if (!res.ok) throw new TransportError(`ledger read failed with ${res.status}`, res.status);
+  const available = ((await res.json()) as { available?: unknown }).available;
+  if ((typeof available !== "string" && typeof available !== "number") || !/^[0-9]+$/.test(String(available))) throw new TransportError("ledger response has no readable available amount");
+  return Number(available) / 1e6;
+}
+
+/** A signer from RECKON_SIGNER_KEY (a hex key in the environment) or from a local module that default-exports { address, personalSign(message) }. */
 export async function loadSigner(env: NodeJS.ProcessEnv): Promise<EscrowSigner | undefined> {
+  if (env.RECKON_SIGNER_KEY) return signerFromKey(env.RECKON_SIGNER_KEY);
   const path = env.RECKON_SIGNER_MODULE;
   if (!path) return undefined;
   const mod = (await import(pathToFileURL(path).href)) as { default?: EscrowSigner };
@@ -161,6 +177,8 @@ export interface BuyConfig {
   enabled: boolean;
   capUsd: number;
   transport?: Transport;
+  /** When set, purchases are paced and capped across passes. Without it every pass with a transport buys. */
+  governor?: BuyGovernor;
 }
 
 export const buyOff = (): BuyConfig => ({ enabled: false, capUsd: 0 });
@@ -168,19 +186,35 @@ export const buyOff = (): BuyConfig => ({ enabled: false, capUsd: 0 });
 /** BUY mode needs the explicit flag, a cap above zero and a signer; anything else refuses to start rather than run half-armed. */
 export async function buyFromEnv(env: NodeJS.ProcessEnv = process.env, http: Fetch = fetch): Promise<BuyConfig> {
   if (env.RECKON_BUY !== "1") return buyOff();
-  const cap = Number(env.RECKON_BUY_CAP_USD ?? "0.25");
+  const num = (name: string, def: string): number => Number(env[name] ?? def);
+  const cap = num("RECKON_BUY_CAP_USD", "0.25");
   if (!(cap > 0)) throw new Error("RECKON_BUY=1 needs RECKON_BUY_CAP_USD above zero");
+  const daily = num("RECKON_BUY_DAILY_USD", "3.50");
+  const everyMin = num("RECKON_BUY_INTERVAL_MIN", "60");
+  const floor = num("RECKON_BUY_MIN_BALANCE_USD", "1");
+  if (!(daily > 0) || !(everyMin > 0) || !(floor >= 0)) throw new Error("RECKON_BUY_DAILY_USD and RECKON_BUY_INTERVAL_MIN must be above zero, and RECKON_BUY_MIN_BALANCE_USD cannot be negative");
   const signer = await loadSigner(env);
-  if (!signer) throw new Error("RECKON_BUY=1 needs RECKON_SIGNER_MODULE (a local module exporting the escrow signer)");
-  return { enabled: true, capUsd: cap, transport: createEngineTransport(signer, http) };
+  if (!signer) throw new Error("RECKON_BUY=1 needs RECKON_SIGNER_KEY or RECKON_SIGNER_MODULE (the escrow signer)");
+  const { BuyGovernor } = await import("./governor.ts");
+  const governor = new BuyGovernor({ intervalMs: everyMin * 60_000, passCapUsd: cap, dailyUsd: daily, minBalanceUsd: floor, readBalance: () => readLedgerAvailableUsd(signer.address, http) });
+  return { enabled: true, capUsd: cap, transport: createEngineTransport(signer, http), governor };
 }
+
+export const DEMO_REASON = "BUY mode is off. The ask is implemented but was not made, so this row carries no result.";
 
 export class BuySession {
   cfg: BuyConfig;
   budget: Budget;
-  constructor(cfg: BuyConfig) {
+  /** Why nothing is bought in this session; shown on every not-bought row. */
+  offReason: string;
+  constructor(cfg: BuyConfig, offReason = DEMO_REASON) {
     this.cfg = cfg;
     this.budget = new Budget(cfg.capUsd);
+    this.offReason = offReason;
+  }
+  /** Start of the summary of a row that was not bought. "demo" is reserved for BUY mode being off altogether. */
+  get notBought(): string {
+    return this.offReason === DEMO_REASON ? "Not bought (demo)." : "Not bought this pass.";
   }
   get enabled(): boolean {
     return this.cfg.enabled && !!this.cfg.transport;

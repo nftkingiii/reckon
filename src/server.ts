@@ -17,6 +17,7 @@ import { toMarkdown } from "./report.ts";
 import { Store } from "./store.ts";
 import { buyFromEnv, ENGINE_ASK_USD, MINERS, type BuyConfig } from "./telegraph.ts";
 import { frontierView } from "./frontier.ts";
+import { TESTNET_LABEL } from "./governor.ts";
 import type { AssetReport, Mode } from "./types.ts";
 import { errText, iso } from "./util.ts";
 
@@ -70,6 +71,8 @@ export function createApp(o: ServerOptions) {
       enabled: o.buy.enabled,
       capUsd: o.buy.capUsd,
       askUsd: ENGINE_ASK_USD,
+      label: o.buy.enabled ? TESTNET_LABEL : null,
+      status: o.buy.enabled && o.buy.governor ? o.buy.governor.status(o.ctx.now()) : null,
       miners: Object.values(MINERS),
       plan: ASSETS.map((a) => {
         const asks = 1 + (a.filings ? 1 : 0) + a.sanctionsNames.length;

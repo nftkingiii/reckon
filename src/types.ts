@@ -36,6 +36,8 @@ export interface TelegraphLeg {
   /** "not-bought" is the demo state: the leg is implemented but BUY mode is off. */
   state: "bought" | "not-bought" | "failed";
   reason?: string;
+  /** Set when this row is an earlier purchase shown again because no paid pass ran this time. */
+  carriedFrom?: string;
   calls: TelegraphCall[];
 }
 
@@ -69,7 +71,7 @@ export interface AssetReport {
   mint: string;
   generatedAt: string;
   mode: Mode;
-  buy: { enabled: boolean; spentUsd: number; capUsd: number };
+  buy: { enabled: boolean; paidThisPass: boolean; spentUsd: number; capUsd: number; note: string | null };
   overall: "flag" | "partial" | "clear";
   counts: { pass: number; flag: number; hold: number };
   established: string[];

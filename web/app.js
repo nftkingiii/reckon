@@ -24,9 +24,12 @@ async function api(path) {
 
 function modeStrip() {
   const s = state;
-  const buy = s.buy.enabled
-    ? `Telegraph purchases are on, capped at $${s.buy.capUsd.toFixed(2)} per pass.`
-    : "Telegraph purchases are off. Rows marked not bought are not results.";
+  const st = s.buy.status;
+  const buy = !s.buy.enabled
+    ? "Telegraph purchases are off. Rows marked not bought are not results."
+    : st
+      ? `Telegraph purchases are on (${s.buy.label}). Paid legs run at most every ${st.intervalMin} minutes, up to $${st.passCapUsd.toFixed(2)} a pass and $${st.dailyUsd.toFixed(2)} a day. Spent today $${st.spentTodayUsd.toFixed(2)}. Escrow ${st.escrowAvailableUsd === null ? "balance unreadable" : "$" + st.escrowAvailableUsd.toFixed(2)}. Last paid pass ${st.lastPaidAt ? when(st.lastPaidAt) : "none yet"}.${st.paused ? " " + st.paused : ""}`
+      : `Telegraph purchases are on (${s.buy.label}), capped at $${s.buy.capUsd.toFixed(2)} per pass.`;
   if (s.mode === "recorded") {
     return `<div class="mode recorded" role="note">
       <div class="row"><span class="tag rec">Recorded</span><strong>Real public responses captured ${esc(when(s.recordedAt))}.</strong></div>
@@ -79,16 +82,17 @@ function sources(list) {
 function telegraph(t) {
   if (!t) return "";
   const head = `<div><b>${esc(t.intent)}</b> via miner ${esc(t.minerId)}, ${esc(t.minerName)}. Estimated $${t.estCostUsd.toFixed(2)}.</div>`;
-  if (t.state === "not-bought") return `<div class="tg"><div><span class="tag">Not bought (demo)</span></div>${head}<div>${esc(t.reason)}</div></div>`;
+  if (t.state === "not-bought") return `<div class="tg"><div><span class="tag">${t.reason && t.reason.startsWith("BUY mode is off") ? "Not bought (demo)" : "Not bought this pass"}</span></div>${head}<div>${esc(t.reason)}</div></div>`;
   const calls = t.calls
     .map((c) => `<div>${esc(c.subject)}: ${esc(c.outcome)}${c.costUsd !== undefined ? `, $${c.costUsd}` : ""}${c.answeredAt ? `, answered ${esc(when(c.answeredAt))}` : ""}${c.receipt?.receiptHash ? `<br><span class="mono">receipt ${esc(c.receipt.receiptHash)}</span>` : ""}${c.note ? `<br>${esc(c.note)}` : ""}</div>`)
     .join("");
-  return `<div class="tg bought"><div><span class="tag">${t.state === "bought" ? "Bought" : "Failed"}</span></div>${head}${calls}</div>`;
+  const carried = t.carriedFrom ? `<div>Bought ${esc(when(t.carriedFrom))}. No paid pass ran this time, so this is the earlier purchase shown again.</div>` : "";
+  return `<div class="tg bought"><div><span class="tag paid">${t.state === "bought" ? "Bought" : "Failed"} · live · testnet (Sepolia test USDC)</span></div>${head}${carried}${calls}</div>`;
 }
 
 function checkRow(c) {
   return `<details class="check" ${c.status === "flag" ? "open" : ""}>
-    <summary><i class="dot ${c.status}"></i><span class="ttl"><b>${esc(c.title)}</b><span class="state ${c.status}">${WORD[c.status]}</span></span><span class="sum">${esc(c.summary)}</span></summary>
+    <summary><i class="dot ${c.status}"></i><span class="ttl"><b>${esc(c.title)}</b><span class="state ${c.status}">${WORD[c.status]}</span>${c.telegraph && c.telegraph.calls.length ? `<span class="tag paid">bought · testnet${c.telegraph.carriedFrom ? " · earlier pass" : ""}</span>` : ""}</span><span class="sum">${esc(c.summary)}</span></summary>
     <div class="body">${c.missing ? `<p><b>Missing:</b> ${esc(c.missing)}</p>` : ""}${kv(c.values)}${telegraph(c.telegraph)}${sources(c.sources)}</div>
   </details>`;
 }

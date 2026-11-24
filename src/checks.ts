@@ -209,7 +209,6 @@ function legState(calls: TelegraphCall[]): TelegraphLeg["state"] {
   return calls.length > 0 && calls.every((c) => c.outcome === "answered") ? "bought" : "failed";
 }
 
-const offReason = "BUY mode is off. The ask is implemented but was not made, so this row carries no result.";
 
 async function supplyLeg(spec: AssetSpec, buy: BuySession, ours: number | null): Promise<CheckRow> {
   const m = MINERS.supply;
@@ -220,9 +219,9 @@ async function supplyLeg(spec: AssetSpec, buy: BuySession, ours: number | null):
       group: "telegraph",
       title,
       status: "hold",
-      summary: `Not bought (demo). In BUY mode Reckon asks miner ${m.id} (${m.name}) for the Solana supply of ${spec.symbol} and compares it with its own two-RPC read. Estimated $${ENGINE_ASK_USD.toFixed(2)}.`,
+      summary: `${buy.notBought} In BUY mode Reckon asks miner ${m.id} (${m.name}) for the Solana supply of ${spec.symbol} and compares it with its own two-RPC read. Estimated $${ENGINE_ASK_USD.toFixed(2)}.`,
       missing: "an independent supply read bought through Telegraph",
-      telegraph: demoLeg(m, 1, offReason),
+      telegraph: demoLeg(m, 1, buy.offReason),
     });
   }
   const call = await buy.ask(m, `${spec.symbol} on Solana`, { token: `${spec.solanaMint} solana` });
@@ -270,10 +269,10 @@ async function filingsLeg(spec: AssetSpec, buy: BuySession, facts: Facts): Promi
       group: "regulatory",
       title,
       status: "hold",
-      summary: `Not bought (demo). EDGAR refuses undeclared clients, so this leg goes through Telegraph: miner ${m.id} (${m.name}) reads the SEC submissions API. The newest filing known on 2026-11-23 was ${f.latestForm} ${f.latestDate}; a later one would be flagged.`,
+      summary: `${buy.notBought} EDGAR refuses undeclared clients, so this leg goes through Telegraph: miner ${m.id} (${m.name}) reads the SEC submissions API. The newest filing known on 2026-11-23 was ${f.latestForm} ${f.latestDate}; a later one would be flagged.`,
       missing: "the current SEC filing list for the CIK, bought through Telegraph",
       values: base,
-      telegraph: demoLeg(m, 1, offReason),
+      telegraph: demoLeg(m, 1, buy.offReason),
     });
   }
   const call = await buy.ask(m, f.telegraphEntity, { entity: f.telegraphEntity, period: "last 12 months" });
@@ -301,10 +300,10 @@ async function sanctionsLeg(spec: AssetSpec, buy: BuySession): Promise<CheckRow>
       group: "entity",
       title,
       status: "hold",
-      summary: `Not bought (demo). In BUY mode each of ${names.length} names is screened by miner ${m.id} (${m.name}): ${names.join("; ")}. Estimated $${(names.length * ENGINE_ASK_USD).toFixed(2)}.`,
+      summary: `${buy.notBought} In BUY mode each of ${names.length} names is screened by miner ${m.id} (${m.name}): ${names.join("; ")}. Estimated $${(names.length * ENGINE_ASK_USD).toFixed(2)}.`,
       missing: "sanctions screening of issuer, adviser, custodian and administrator, bought through Telegraph",
       values: { names: names.join("; ") },
-      telegraph: demoLeg(m, names.length, offReason),
+      telegraph: demoLeg(m, names.length, buy.offReason),
     });
   }
   const calls: TelegraphCall[] = [];

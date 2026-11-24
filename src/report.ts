@@ -5,7 +5,7 @@ import type { AssetRun } from "./checks.ts";
 import type { AssetReport, Mode } from "./types.ts";
 import { iso } from "./util.ts";
 
-export function buildReport(spec: AssetSpec, run: AssetRun, o: { now: number; mode: Mode; prev: Snapshot | null; buy: { enabled: boolean; spentUsd: number; capUsd: number } }): { report: AssetReport; snapshot: Snapshot } {
+export function buildReport(spec: AssetSpec, run: AssetRun, o: { now: number; mode: Mode; prev: Snapshot | null; buy: AssetReport["buy"] }): { report: AssetReport; snapshot: Snapshot } {
   const counts = { pass: 0, flag: 0, hold: 0 };
   for (const r of run.rows) counts[r.status]++;
   const hash = hashFacts(run.facts);
@@ -43,7 +43,7 @@ export function toMarkdown(r: AssetReport): string {
   out.push(`# ${r.name}: Reckon report`, "");
   out.push(`- Generated: ${r.generatedAt}`);
   out.push(`- Data: ${r.mode === "live" ? "live public reads" : "RECORDED fixtures (no network calls were made for this report)"}`);
-  out.push(`- Telegraph purchases: ${r.buy.enabled ? `ON, spent $${r.buy.spentUsd.toFixed(2)} of a $${r.buy.capUsd.toFixed(2)} cap` : "OFF (rows marked not bought are not results)"}`);
+  out.push(`- Telegraph purchases: ${r.buy.enabled ? `ON, live · testnet (Sepolia test USDC). ${r.buy.paidThisPass ? `This pass spent $${r.buy.spentUsd.toFixed(2)} of a $${r.buy.capUsd.toFixed(2)} cap.` : `No paid pass this time: ${r.buy.note ?? ""}`}` : "OFF (rows marked not bought are not results)"}`);
   out.push(`- Solana mint: \`${r.mint}\``);
   out.push(`- Snapshot hash: \`${r.snapshotHash}\`${r.previousHash ? `, previous \`${r.previousHash}\`` : ", first snapshot"}`);
   out.push(`- Rows: ${r.counts.pass} established, ${r.counts.flag} flagged, ${r.counts.hold} cannot be checked`, "");

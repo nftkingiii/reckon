@@ -4,11 +4,17 @@
   "private": true,
   "type": "module",
   "description": "Monitors tokenized real-world assets on Solana against what their issuers and regulators publish.",
-  "engines": { "node": ">=22.18" },
+  "engines": {
+    "node": ">=22.18"
+  },
   "scripts": {
     "start": "node src/server.ts",
     "once": "node src/cli.ts once",
     "record": "node scripts/record.ts",
     "test": "node --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@noble/curves": "1.6.0",
+    "@noble/hashes": "1.5.0"
   }
 }
