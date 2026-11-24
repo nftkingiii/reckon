@@ -22,17 +22,20 @@ export interface Miner {
 export const MINERS = {
   supply: { id: "7310060", name: "Plumb On-Chain and CVE Truth", intent: "TOKEN_TOTAL_SUPPLY_VERIFY_GENERAL" },
   filings: { id: "731003", name: "Counterproof SEC Filing Monitor", intent: "REGULATORY_FILING_MONITOR_GENERAL" },
-  sanctions: { id: "731002", name: "Counterproof Sanctions Screener", intent: "SANCTIONS_SCREENING_MATCH_GENERAL" },
+  sanctions: { id: "710637", name: "Sanctions Name Evidence", intent: "SANCTIONS_SCREENING_MATCH_GENERAL" },
 } as const satisfies Record<string, Miner>;
 
 /**
- * Sanctions miners in the order they are tried, all third-party and all taking just `name`. Picked from the live
- * leaderboard (epoch 48, 2026-11-24): the three that screen official lists and scored 1.0, then 731149, which ranked
- * 30th and answered every ask with "circuit open" on 2026-11-24.
+ * Sanctions miners in the order they are tried, all third-party and all taking just `name`. Ordered by the live
+ * leaderboard (epoch 50, 2026-11-24) among miners that actually screen a name: ranks 1, 3, 5, 6 and 7 are OpenSanctions
+ * dataset-index and metadata miners that do not screen names, so they are skipped. 710637 (rank 2), then 731002
+ * (proven on 2026-11-24, answered all five USTB names), then 84392 (rank 4, a name screener whose request field mapping
+ * is model-built, so it is not first), then 64175 and 731149 (ranked 30th, "circuit open" on 2026-11-24).
  */
 export const SANCTIONS_CHAIN: Miner[] = [
   MINERS.sanctions,
-  { id: "710637", name: "Sanctions Name Evidence", intent: "SANCTIONS_SCREENING_MATCH_GENERAL" },
+  { id: "731002", name: "Counterproof Sanctions Screener", intent: "SANCTIONS_SCREENING_MATCH_GENERAL" },
+  { id: "84392", name: "Sanctions & Watchlist Screening Miner", intent: "SANCTIONS_SCREENING_MATCH_GENERAL" },
   { id: "64175", name: "OathCast Sanctions Screen", intent: "SANCTIONS_SCREENING_MATCH_GENERAL" },
   { id: "731149", name: "ZK Official Sanctions Match", intent: "SANCTIONS_SCREENING_MATCH_GENERAL" },
 ];

@@ -33,7 +33,7 @@ const sanctionsRow = (r: Awaited<ReturnType<typeof run>>) => r.rows.find((x) => 
 const circuitOpen = () => new TransportError("paid ask answered 500: upstream call failed: circuit open", 500);
 
 test("SYNTHETIC sanctions: the chain is third-party miners first and 731149 last", () => {
-  assert.deepEqual(SANCTIONS_CHAIN.map((m) => m.id), ["731002", "710637", "64175", "731149"]);
+  assert.deepEqual(SANCTIONS_CHAIN.map((m) => m.id), ["710637", "731002", "84392", "64175", "731149"]);
   assert.ok(SANCTIONS_CHAIN.every((m) => !["7310060", "7310099"].includes(m.id)), "none of our own miners");
 });
 
@@ -63,8 +63,8 @@ test("SYNTHETIC sanctions: when every miner fails, nothing is called clear, and 
   for (const name of ustb.sanctionsNames) assert.match(String(row.values[name]), /^not screened/);
   assert.equal(row.telegraph!.state, "failed");
   assert.equal(row.telegraph!.calls.length, ustb.sanctionsNames.length);
-  // 5 names, 4 miners, each miner tried twice and then skipped
-  assert.equal(n.asks.filter((a) => a.name).length, 8);
+  // 5 names, 5 miners, each miner tried twice and then skipped
+  assert.equal(n.asks.filter((a) => a.name).length, 10);
   const last = row.telegraph!.calls.at(-1)!;
   assert.ok(last.attempts!.every((a) => a.outcome === "skipped"));
 });
@@ -113,6 +113,6 @@ test("sanctions with BUY off lists the whole chain and makes no ask", async () =
   const r = await runAsset(ustb, { ctx: ctxFor(fixture()), buy: new BuySession(buyOff()), prev: null });
   const row = r.rows.find((x) => x.id === "sanctions")!;
   assert.equal(row.telegraph!.state, "not-bought");
-  assert.equal(row.telegraph!.chain!.length, 4);
-  assert.match(row.summary, /731002 \(Counterproof Sanctions Screener\), then 710637/);
+  assert.equal(row.telegraph!.chain!.length, 5);
+  assert.match(row.summary, /710637 \(Sanctions Name Evidence\), then 731002/);
 });
