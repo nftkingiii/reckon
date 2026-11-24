@@ -22,8 +22,32 @@ export interface Miner {
 export const MINERS = {
   supply: { id: "7310060", name: "Plumb On-Chain and CVE Truth", intent: "TOKEN_TOTAL_SUPPLY_VERIFY_GENERAL" },
   filings: { id: "731003", name: "Counterproof SEC Filing Monitor", intent: "REGULATORY_FILING_MONITOR_GENERAL" },
-  sanctions: { id: "731149", name: "ZK Official Sanctions Match", intent: "SANCTIONS_SCREENING_MATCH_GENERAL" },
+  sanctions: { id: "731002", name: "Counterproof Sanctions Screener", intent: "SANCTIONS_SCREENING_MATCH_GENERAL" },
 } as const satisfies Record<string, Miner>;
+
+/**
+ * Sanctions miners in the order they are tried, all third-party and all taking just `name`. Picked from the live
+ * leaderboard (epoch 48, 2026-11-24): the three that screen official lists and scored 1.0, then 731149, which ranked
+ * 30th and answered every ask with "circuit open" on 2026-11-24.
+ */
+export const SANCTIONS_CHAIN: Miner[] = [
+  MINERS.sanctions,
+  { id: "710637", name: "Sanctions Name Evidence", intent: "SANCTIONS_SCREENING_MATCH_GENERAL" },
+  { id: "64175", name: "OathCast Sanctions Screen", intent: "SANCTIONS_SCREENING_MATCH_GENERAL" },
+  { id: "731149", name: "ZK Official Sanctions Match", intent: "SANCTIONS_SCREENING_MATCH_GENERAL" },
+];
+
+/** Reads a sanctions answer in any of the shapes these miners use. null means unreadable, which is never treated as clear. */
+export function sanctionsVerdict(answer: Record<string, unknown> | undefined): "match" | "clear" | null {
+  if (!answer) return null;
+  const flag = String(answer.matched ?? answer.on_list ?? answer.match ?? "").toLowerCase();
+  if (["true", "yes", "match", "matched", "1"].includes(flag)) return "match";
+  if (["false", "no", "0", "no match", "not matched", "clear"].includes(flag)) return "clear";
+  const label = String(answer.label ?? answer.verdict ?? answer.status ?? "").toUpperCase();
+  if (label === "BLOCK" || label === "REVIEW") return "match";
+  if (label === "CLEAR") return "clear";
+  return null;
+}
 
 export interface AskRequest {
   intent: string;

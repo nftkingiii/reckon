@@ -8,8 +8,8 @@ import { readOndo, type OndoRead } from "./readers/ondo.ts";
 import { readSuperstate, type SuperstateRead } from "./readers/superstate.ts";
 import { controls, extension, readActivity, readMint, supplyOf, supplyText, type ActivityRead, type MintRead } from "./solana.ts";
 import { diffFacts, type Facts, type Snapshot } from "./store.ts";
-import { BuySession, demoLeg, ENGINE_ASK_USD, MINERS } from "./telegraph.ts";
-import type { Cell, CheckRow, Change, SourceRef, Status, TelegraphCall, TelegraphLeg } from "./types.ts";
+import { BuySession, demoLeg, ENGINE_ASK_USD, MINERS, SANCTIONS_CHAIN, sanctionsVerdict } from "./telegraph.ts";
+import type { Attempt, Cell, CheckRow, Change, SourceRef, Status, TelegraphCall, TelegraphLeg } from "./types.ts";
 import { daysBetween, errText, iso, num, relDiff, unitsToNumber, usd } from "./util.ts";
 
 export interface RunDeps {
@@ -291,39 +291,81 @@ async function filingsLeg(spec: AssetSpec, buy: BuySession, facts: Facts): Promi
 }
 
 async function sanctionsLeg(spec: AssetSpec, buy: BuySession): Promise<CheckRow> {
-  const m = MINERS.sanctions;
+  const chain = SANCTIONS_CHAIN;
+  const m = chain[0]!;
   const title = "Sanctions screening of the named entities";
   const names = spec.sanctionsNames;
+  const chainText = chain.map((x) => `${x.id} (${x.name})`).join(", then ");
+  const asChain = chain.map((x) => ({ id: x.id, name: x.name }));
   if (!buy.enabled) {
     return row({
       id: "sanctions",
       group: "entity",
       title,
       status: "hold",
-      summary: `${buy.notBought} In BUY mode each of ${names.length} names is screened by miner ${m.id} (${m.name}): ${names.join("; ")}. Estimated $${(names.length * ENGINE_ASK_USD).toFixed(2)}.`,
+      summary: `${buy.notBought} In BUY mode each of ${names.length} names is screened by the first miner that gives a proper answer, tried in this order: ${chainText}. Names: ${names.join("; ")}. Estimated $${(names.length * ENGINE_ASK_USD).toFixed(2)}.`,
       missing: "sanctions screening of issuer, adviser, custodian and administrator, bought through Telegraph",
       values: { names: names.join("; ") },
-      telegraph: demoLeg(m, names.length, buy.offReason),
+      telegraph: { ...demoLeg(m, names.length, buy.offReason), chain: asChain },
     });
   }
   const calls: TelegraphCall[] = [];
-  for (const n of names) calls.push(await buy.ask(m, n, { name: n }));
-  const leg: TelegraphLeg = { intent: m.intent, minerId: m.id, minerName: m.name, estCostUsd: names.length * ENGINE_ASK_USD, state: legState(calls), calls };
+  const strikes = new Map<string, number>();
+  for (const n of names) {
+    const attempts: Attempt[] = [];
+    let done: TelegraphCall | null = null;
+    let last: TelegraphCall | null = null;
+    for (const miner of chain) {
+      if ((strikes.get(miner.id) ?? 0) >= 2) {
+        attempts.push({ minerId: miner.id, minerName: miner.name, outcome: "skipped", note: "failed on the previous two names in this pass" });
+        continue;
+      }
+      const c = await buy.ask(miner, n, { name: n });
+      last = c;
+      if (c.outcome === "answered") {
+        if (sanctionsVerdict(c.answer) !== null) {
+          attempts.push({ minerId: miner.id, minerName: miner.name, outcome: "answered" });
+          done = c;
+          break;
+        }
+        // Paid for, but unreadable: never a "clear". Count it against the miner and try the next one.
+        strikes.set(miner.id, (strikes.get(miner.id) ?? 0) + 1);
+        attempts.push({ minerId: miner.id, minerName: miner.name, outcome: "error", note: "the answer had no readable verdict" });
+        continue;
+      }
+      attempts.push({ minerId: miner.id, minerName: miner.name, outcome: c.outcome, ...(c.note ? { note: c.note } : {}) });
+      if (c.outcome === "refused") break; // the cap is reached or buying is off: asking another miner would hit the same wall
+      strikes.set(miner.id, (strikes.get(miner.id) ?? 0) + 1);
+    }
+    if (done) calls.push({ ...done, attempts });
+    else calls.push({ subject: n, minerId: last?.minerId ?? m.id, params: { name: n }, outcome: last?.outcome === "refused" ? "refused" : "error", note: `no miner gave a usable answer (${attempts.length} tried)`, attempts });
+  }
+  const answeredAny = calls.some((c) => c.outcome === "answered");
+  const leg: TelegraphLeg = {
+    intent: m.intent,
+    minerId: m.id,
+    minerName: m.name,
+    chain: asChain,
+    estCostUsd: names.length * ENGINE_ASK_USD,
+    state: legState(calls),
+    calls,
+    ...(answeredAny ? {} : { reason: "No sanctions miner gave a usable answer in this pass." }),
+  };
   const values: Record<string, Cell> = {};
   const hits: string[] = [];
   let unanswered = 0;
   for (const c of calls) {
+    const failed = (c.attempts ?? []).filter((x) => x.outcome !== "answered");
+    const trail = failed.length ? `; failed first: ${failed.map((x) => `${x.minerId} ${x.outcome}${x.note ? ` (${x.note})` : ""}`).join(", ")}` : "";
     if (c.outcome !== "answered") {
       unanswered++;
-      values[c.subject] = `not screened: ${c.note}`;
+      values[c.subject] = `not screened: ${c.note}${trail}`;
       continue;
     }
-    const raw = String(c.answer?.matched ?? "").toLowerCase();
-    const matched = ["true", "yes", "match", "matched", "1"].includes(raw);
-    const clear = ["false", "no", "0", "no match", "not matched", "clear"].includes(raw);
-    if (matched) hits.push(c.subject);
-    else if (!clear) unanswered++;
-    values[c.subject] = matched ? "MATCH" : clear ? "no match" : `unreadable answer: ${raw}`;
+    const verdict = sanctionsVerdict(c.answer);
+    if (verdict === "match") hits.push(c.subject);
+    const by = (c.attempts ?? []).find((x) => x.outcome === "answered");
+    values[c.subject] = `${verdict === "match" ? "MATCH" : "no match"} (answered by ${c.minerId}${by ? ` ${by.minerName}` : ""}${trail})`;
   }
   const status: Status = hits.length ? "flag" : unanswered ? "hold" : "pass";
   return row({
@@ -331,7 +373,7 @@ async function sanctionsLeg(spec: AssetSpec, buy: BuySession): Promise<CheckRow>
     group: "entity",
     title,
     status,
-    summary: hits.length ? `Possible sanctions match for: ${hits.join("; ")}. This is evidence for a person to review.` : unanswered ? `${calls.length - unanswered} of ${calls.length} names screened.` : `${calls.length} names screened, no match.`,
+    summary: hits.length ? `Possible sanctions match for: ${hits.join("; ")}. This is evidence for a person to review.` : unanswered ? `${calls.length - unanswered} of ${calls.length} names screened. A name that no miner could screen is not treated as clear.` : `${calls.length} names screened, no match.`,
     ...(status === "hold" ? { missing: "screening of every named entity" } : {}),
     values,
     telegraph: leg,

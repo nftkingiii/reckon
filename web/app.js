@@ -81,10 +81,12 @@ function sources(list) {
 
 function telegraph(t) {
   if (!t) return "";
-  const head = `<div><b>${esc(t.intent)}</b> via miner ${esc(t.minerId)}, ${esc(t.minerName)}. Estimated $${t.estCostUsd.toFixed(2)}.</div>`;
+  const head = t.chain && t.chain.length > 1
+    ? `<div><b>${esc(t.intent)}</b>. Miners tried in order, stopping at the first proper answer: ${t.chain.map((m) => `${esc(m.id)} ${esc(m.name)}`).join(", then ")}. Estimated $${t.estCostUsd.toFixed(2)}.</div>`
+    : `<div><b>${esc(t.intent)}</b> via miner ${esc(t.minerId)}, ${esc(t.minerName)}. Estimated $${t.estCostUsd.toFixed(2)}.</div>`;
   if (t.state === "not-bought") return `<div class="tg"><div><span class="tag">${t.reason && t.reason.startsWith("BUY mode is off") ? "Not bought (demo)" : "Not bought this pass"}</span></div>${head}<div>${esc(t.reason)}</div></div>`;
   const calls = t.calls
-    .map((c) => `<div>${esc(c.subject)}: ${esc(c.outcome)}${c.costUsd !== undefined ? `, $${c.costUsd}` : ""}${c.answeredAt ? `, answered ${esc(when(c.answeredAt))}` : ""}${c.receipt?.receiptHash ? `<br><span class="mono">receipt ${esc(c.receipt.receiptHash)}</span>` : ""}${c.note ? `<br>${esc(c.note)}` : ""}</div>`)
+    .map((c) => `<div>${esc(c.subject)}: ${esc(c.outcome)}${c.outcome === "answered" && t.chain && t.chain.length > 1 ? ` by miner ${esc(c.minerId)}` : ""}${(c.attempts || []).filter((x) => x.outcome !== "answered").map((x) => `<br>miner ${esc(x.minerId)} ${esc(x.outcome)}${x.note ? ": " + esc(x.note) : ""}`).join("")}${c.costUsd !== undefined ? `, $${c.costUsd}` : ""}${c.answeredAt ? `, answered ${esc(when(c.answeredAt))}` : ""}${c.receipt?.receiptHash ? `<br><span class="mono">receipt ${esc(c.receipt.receiptHash)}</span>` : ""}${c.note ? `<br>${esc(c.note)}` : ""}</div>`)
     .join("");
   const carried = t.carriedFrom ? `<div>Bought ${esc(when(t.carriedFrom))}. No paid pass ran this time, so this is the earlier purchase shown again.</div>` : "";
   return `<div class="tg bought"><div><span class="tag paid">${t.state === "bought" ? "Bought" : "Failed"} · live · testnet (Sepolia test USDC)</span></div>${head}${carried}${calls}</div>`;

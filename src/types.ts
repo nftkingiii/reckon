@@ -16,8 +16,17 @@ export interface Receipt {
   rail?: string;
 }
 
+export interface Attempt {
+  minerId: string;
+  minerName: string;
+  outcome: "answered" | "refused" | "error" | "skipped";
+  note?: string;
+}
+
 export interface TelegraphCall {
   subject: string;
+  /** Every miner tried for this subject, in order, including the ones that failed. */
+  attempts?: Attempt[];
   minerId: string;
   params: Record<string, unknown>;
   costUsd?: number;
@@ -32,6 +41,8 @@ export interface TelegraphLeg {
   intent: string;
   minerId: string;
   minerName: string;
+  /** When more than one miner can answer: the order they are tried in, stopping at the first proper answer. */
+  chain?: { id: string; name: string }[];
   estCostUsd: number;
   /** "not-bought" is the demo state: the leg is implemented but BUY mode is off. */
   state: "bought" | "not-bought" | "failed";
