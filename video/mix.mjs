@@ -32,7 +32,7 @@ if (A.voice) {
 }
 if (!mixes.length) { console.error('nothing to mix: pass --music, --sfx or --voice'); process.exit(1); }
 const filter = [...chains,
-  `${mixes.join('')}amix=inputs=${mixes.length}:normalize=0:duration=longest,apad,atrim=0:${vdur},loudnorm=I=${lufs}:TP=-1.5:LRA=11,aresample=48000,aformat=channel_layouts=stereo[a]`].join(';');
+  `${mixes.join('')}amix=inputs=${mixes.length}:normalize=0:duration=longest,apad,atrim=0:${vdur},loudnorm=I=${lufs}:TP=-1.5:LRA=11,alimiter=limit=0.7:level=disabled,aresample=48000,aformat=channel_layouts=stereo[a]`].join(';');
 mkdirSync(dirname(out), { recursive: true });
 const args = ['-y', '-loglevel', 'error', ...inputs, '-filter_complex', filter, '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', out];
 await new Promise((ok, bad) => spawn('ffmpeg', args, { stdio: 'inherit' }).on('close', c => c ? bad(new Error('ffmpeg exited ' + c)) : ok()));
