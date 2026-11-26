@@ -155,10 +155,10 @@ export const ASSETS: AssetSpec[] = [
     leiNameLookups: ["Ondo USDY LLC", "Ondo Finance Inc."],
     cannotCheck: [
       { what: "Daily and monthly reserve attestations", why: "They are PDFs in public Dropbox folders. The folder listing is a JavaScript page, so Reckon cannot list or read the files." },
-      { what: "Which chains' supply is real and which is bridged", why: "Reckon sums supply on Solana, six EVM chains, Sui, Aptos, Noble, Stellar and Tempo. Where a token is escrowed on one chain and issued on another, the sum counts it twice, and nothing public says which USDY chains work that way." },
+      { what: "Who controls the large Stellar accounts", why: "About 447 million USDY (96% of the Stellar supply) sit in two Stellar accounts that Ondo's listed redemptions account funded and that have never sent any. One of them alone is the size of the unexplained gap against the issuer's value outstanding. Nothing public says who controls them, so Reckon shows them beside the result and does not subtract them. See docs/usdy-investigation.md." },
       { what: "Supply on Sui, Aptos, Stellar and Tempo against a second source", why: "Each is read from one endpoint (Noble from two), so a wrong answer there cannot be refused on disagreement the way the two-RPC reads can." },
       { what: "A regulatory filing trail", why: "USDY is a Regulation S offering, so there is no Form D to monitor. No EDGAR filing was found for the USDY issuer." },
-      { what: "The collateralization ratio's definition", why: "The page footnotes that define it were not in the page text Reckon can read." },
+      { what: "The collateralization ratio's inputs", why: "Footnote 5 on Ondo's page says the ratio excludes Treasuries used for structured financing. The excluded amounts are not published, so the 156.90% cannot be recomputed from the page." },
       { what: "That the underlying Treasuries and the tokenized SHV exist", why: "The positions table is the issuer's. Only the attestation PDFs could back it, and those are out of reach." },
     ],
     supplyTolerance: 0.0005,

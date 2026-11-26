@@ -5,6 +5,7 @@ import { getText, sourceOf, type Ctx } from "./net.ts";
 import type { AssetSpec } from "./registry.ts";
 import { readLei, searchLeiByName, type LeiRecord } from "./readers/gleif.ts";
 import { readOndo, type OndoRead } from "./readers/ondo.ts";
+import { listedHolders, lockboxRows, readHolders, STELLAR_CANDIDATES } from "./readers/usdy-holders.ts";
 import { readSuperstate, type SuperstateRead } from "./readers/superstate.ts";
 import { controls, extension, readActivity, readMint, supplyOf, supplyText, type ActivityRead, type MintRead } from "./solana.ts";
 import { diffFacts, type Facts, type Snapshot } from "./store.ts";
@@ -746,7 +747,31 @@ async function usdyRows(spec: AssetSpec, od: OndoRead, ctx: Ctx, sol: MintRead |
         sources: chainSources,
       }),
     );
-    const outOk = Math.abs(outGap) <= 0.03 && missing.length === 0;
+    // Adjustments. Only addresses that Ondo's own docs name are subtracted; the Stellar accounts found in the investigation are shown beside the result and are not applied.
+    const docRows = od.addresses.ok ? od.addresses.value : [];
+    const holders = od.addresses.ok ? await readHolders(ctx, [...listedHolders(docRows), ...STELLAR_CANDIDATES]) : [];
+    const issuerHeld = holders.filter((h) => h.role === "issuer-listed");
+    const wrappers = holders.filter((h) => h.role === "wrapper");
+    const cands = holders.filter((h) => h.role === "candidate");
+    const heldTokens = issuerHeld.reduce((a, h) => a + (h.tokens ?? 0), 0);
+    const unreadHolders = [...issuerHeld, ...wrappers].filter((h) => h.tokens === null);
+    const lockboxes = lockboxRows(docRows);
+    const lockedTokens = 0; // Ondo documents the bridge as burn-and-mint; no escrow address is listed to subtract (lockboxes lists any that appear).
+    const wrapperDouble = 0; // wrapper-held USDY sits inside each chain's USDY supply once; Reckon never adds rUSDY or mUSD supply on top.
+    const adjTokens = totalTokens - lockedTokens - heldTokens - wrapperDouble;
+    const adjValue = adjTokens * price;
+    const resid = adjValue - p.outstandingUsd;
+    const residPct = resid / p.outstandingUsd;
+    const candTokens = cands.reduce((a, h) => a + (h.tokens ?? 0), 0);
+    const rawGapUsd = valueUsd - p.outstandingUsd;
+    const outOk = Math.abs(residPct) <= 0.03 && missing.length === 0 && unreadHolders.length === 0;
+    const hv: Record<string, Cell> = {};
+    for (const h of [...issuerHeld, ...wrappers]) hv[`${h.role === "wrapper" ? "wrapper holds" : "Ondo-listed"}: ${h.label}`] = h.tokens === null ? `not read: ${h.error}` : `${tok(h.tokens, 2)} (${h.how})`;
+    for (const h of cands) hv[`candidate (not applied): ${h.label}`] = h.tokens === null ? `not read: ${h.error}` : `${tok(h.tokens, 2)} (${h.how}). ${h.basis}`;
+    const candNote =
+      candTokens > 0
+        ? ` Not applied: two Stellar accounts hold ${tok(candTokens, 0)} tokens (${usd(candTokens * price, 0)}); one of them alone is ${num((cands[0]?.tokens ?? 0) / (rawGapUsd / price) * 100, 1)}% of the raw gap, but nothing public says who controls them.`
+        : "";
     out.push(
       row({
         id: "issuer-supply",
@@ -754,10 +779,26 @@ async function usdyRows(spec: AssetSpec, od: OndoRead, ctx: Ctx, sol: MintRead |
         title: "Supply across chains against the issuer's value outstanding",
         status: outOk ? "pass" : "flag",
         summary: outOk
-          ? `${got.length} chains read: ${usd(valueUsd, 0)} is within ${num(Math.abs(outGap) * 100, 1)}% of the issuer's ${usd(p.outstandingUsd, 0)} outstanding.`
-          : `Does not reconcile. ${got.length} chains read: ${tok(totalTokens, 0)} tokens at ${price.toFixed(4)} is ${usd(valueUsd, 0)} against the issuer's ${usd(p.outstandingUsd, 0)} outstanding (${outGap >= 0 ? "+" : ""}${num(outGap * 100, 1)}%).${notRead} ${caveat}`,
-        values: { ...common, "price used": Number(price.toFixed(6)), "value of tokens read": Math.round(valueUsd), "issuer: value outstanding (rounded)": p.outstandingUsd, "gap vs value outstanding": Number(outGap.toFixed(4)), "issuer figure as of": p.asOf },
-        sources: chainSources,
+          ? `${got.length} chains read: after documented adjustments ${usd(adjValue, 0)} is within ${num(Math.abs(residPct) * 100, 1)}% of the issuer's ${usd(p.outstandingUsd, 0)} outstanding.`
+          : `Does not reconcile. Raw sum ${tok(totalTokens, 0)} tokens (${usd(valueUsd, 0)}); less ${tok(lockedTokens, 0)} locked in bridges, ${tok(heldTokens, 0)} at Ondo-listed addresses and ${tok(wrapperDouble, 0)} wrapper double counts leaves ${tok(adjTokens, 0)} (${usd(adjValue, 0)}) against the issuer's ${usd(p.outstandingUsd, 0)} outstanding: residual ${resid >= 0 ? "+" : ""}${usd(resid, 0)} (${residPct >= 0 ? "+" : ""}${num(residPct * 100, 1)}%), unexplained by documented adjustments.${candNote}${unreadHolders.length ? ` Not read: ${unreadHolders.map((h) => h.label).join(", ")}.` : ""}${notRead} See the investigation (/docs/usdy-investigation.md).`,
+        values: {
+          ...common,
+          "price used": Number(price.toFixed(6)),
+          "raw value of tokens read": Math.round(valueUsd),
+          "less: locked in bridge or escrow (tokens)": lockedTokens,
+          "less: held at Ondo-listed addresses (tokens)": Number(heldTokens.toFixed(2)),
+          "less: wrapper double counts (tokens)": wrapperDouble,
+          "adjusted circulating (tokens)": Number(adjTokens.toFixed(2)),
+          "adjusted value": Math.round(adjValue),
+          "issuer: value outstanding (rounded)": p.outstandingUsd,
+          "residual vs issuer (USD)": Math.round(resid),
+          "residual vs issuer (%)": Number((residPct * 100).toFixed(2)),
+          "gap vs value outstanding": Number(outGap.toFixed(4)),
+          "bridge escrow rows listed by Ondo": lockboxes.length ? lockboxes.map((r) => `${r.chain} ${r.name}`).join(", ") : "none (Ondo documents burn-and-mint)",
+          ...hv,
+          "issuer figure as of": p.asOf,
+        },
+        sources: [...chainSources, ...holders.flatMap((h) => h.sources), { name: "Reckon USDY investigation", url: "/docs/usdy-investigation.md", fetchedAt: iso(ctx.now()), note: "Method, addresses and what is explained" }],
       }),
     );
   }
@@ -776,7 +817,7 @@ async function usdyRows(spec: AssetSpec, od: OndoRead, ctx: Ctx, sol: MintRead |
       status: ok ? "pass" : "flag",
       summary: ok
         ? `Underlying assets divided by value outstanding is ${num(ratio, 2)}%, matching the stated ratio.`
-        : `The page states a collateralization ratio of ${num(p.collateralizationPct, 2)}%, but its own figures give ${num(ratio, 2)}% (${usd(p.underlyingUsd, 0)} underlying over ${usd(p.outstandingUsd, 0)} outstanding). The footnote that would define the ratio was not readable, so this is a finding to explain, not a proven error.${posGap <= 0.005 ? " The positions table does add up to the underlying figure." : ""}`,
+        : `The page states a collateralization ratio of ${num(p.collateralizationPct, 2)}%, but its own figures give ${num(ratio, 2)}% (${usd(p.underlyingUsd, 0)} underlying over ${usd(p.outstandingUsd, 0)} outstanding). ${p.footnotes["5"] ? `The page's footnote 5 says: "${p.footnotes["5"]}" So the ratio is computed on a different base from the two headline figures and cannot be reproduced from them; the figures it uses are not published.` : "The footnote that would define the ratio was not readable, so this is a finding to explain, not a proven error."}${posGap <= 0.005 ? " The positions table does add up to the underlying figure." : ""}`,
       values: { "stated collateralization (%)": p.collateralizationPct, "recomputed (%)": Number(ratio.toFixed(2)), "value outstanding": p.outstandingUsd, "value of underlying": p.underlyingUsd, "sum of positions": posSum, "positions vs underlying (relative gap)": Number(posGap.toFixed(5)), "page TVL": p.tvlUsd },
       sources: srcs,
     }),

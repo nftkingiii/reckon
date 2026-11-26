@@ -184,3 +184,19 @@ td.na { color: var(--text-3); }
   main > * { animation: in 120ms ease-out both; }
   @keyframes in { from { opacity: 0; } to { opacity: 1; } }
 }
+
+/* holdings */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.addbar { display: flex; gap: 8px; flex-wrap: wrap; }
+.addbar input { flex: 1 1 280px; min-width: 0; background: var(--surface); color: var(--text); border: 1px solid var(--line-strong); border-radius: 6px; padding: 8px 12px; font: 400 14px/20px var(--mono); }
+.chips, .examples { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line-strong); border-radius: 6px; padding: 4px 4px 4px 12px; background: var(--surface); }
+.chip button { appearance: none; background: transparent; border: 0; color: var(--text-2); cursor: pointer; padding: 0 8px; font: 500 14px/20px var(--sans); }
+.examples .btn { padding: 4px 12px; font-size: 13px; }
+.card.hold { gap: 20px; }
+.pos { border-top: 1px solid var(--line); padding-top: 16px; display: grid; gap: 16px; }
+.pos-head { display: flex; justify-content: space-between; gap: 12px; align-items: start; flex-wrap: wrap; }
+.pos-head h4 { font-size: 16px; line-height: 24px; font-weight: 500; }
+.tx, .risks { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 14px; line-height: 20px; overflow-wrap: anywhere; }
+.risks li { display: grid; grid-template-columns: auto 1fr; gap: 12px; }
+.risks .dot { margin-top: 6px; }

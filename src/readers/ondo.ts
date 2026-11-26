@@ -18,6 +18,8 @@ export interface OndoPage {
   positions: { name: string; valueUsd: number }[];
   /** The abbreviated addresses the page prints per network, e.g. Solana "A1KL...Eto6". */
   printedAddresses: Record<string, string>;
+  /** The page footnotes, keyed by their superscript digit, e.g. "5" for the collateralization ratio. */
+  footnotes: Record<string, string>;
 }
 
 export function parseOndoPage(html: string): OndoPage {
@@ -72,7 +74,11 @@ export function parseOndoPage(html: string): OndoPage {
   const rEnd = at((l) => l === "rUSDY", ecoStart + 1);
   if (ecoStart >= 0 && rEnd > ecoStart) for (let i = ecoStart + 1; i + 1 < rEnd; i += 2) printedAddresses[lines[i]!] = lines[i + 1]!;
 
-  return { asOfText, asOf, outstandingUsd, underlyingUsd, collateralizationPct, tvlUsd, priceUsd, positions, printedAddresses };
+  const SUP: Record<string, string> = { "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8" };
+  const footnotes: Record<string, string> = {};
+  for (const l of lines) if (l.length > 2 && SUP[l[0]!] && l[1] === " ") footnotes[SUP[l[0]!]!] = l.slice(2).trim();
+
+  return { footnotes, asOfText, asOf, outstandingUsd, underlyingUsd, collateralizationPct, tvlUsd, priceUsd, positions, printedAddresses };
 }
 
 export interface AddressRow {

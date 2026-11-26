@@ -145,6 +145,7 @@ async function renderDetail(id) {
       ${strip(r.checks)}
       ${counts(r.counts)}
       <div class="meta"><span>Read <b>${esc(when(r.generatedAt))}</b></span><span>Snapshot <b class="mono">${esc(r.snapshotHash.slice(0, 12))}</b></span><span>Previous <b class="mono">${esc((r.previousHash || "none").slice(0, 12))}</b></span></div>
+      ${id === "usdy" ? '<div class="meta"><a href="/docs/usdy-investigation.md" target="_blank" rel="noopener">Read the USDY discrepancy investigation: method, addresses, what is explained and what is not</a></div>' : ""}
       <div class="meta"><a class="btn" href="/api/assets/${id}/report.json" download>Download report (JSON)</a><a class="btn" href="/api/assets/${id}/report.md" download>Download report (Markdown)</a></div>
     </section>
     <div class="three">
@@ -245,14 +246,120 @@ function renderHow() {
     </div>`;
 }
 
+
+// ---------------------------------------------------------------- holdings
+// Watched addresses live only in this browser (localStorage, guarded) or in the URL. The server stores nothing.
+const KEY = "reckon.holdings.v1";
+const loadAddrs = () => {
+  try {
+    const v = JSON.parse(localStorage.getItem(KEY) || "[]");
+    return Array.isArray(v) ? v.filter((x) => typeof x === "string").slice(0, 5) : [];
+  } catch {
+    return [];
+  }
+};
+const saveAddrs = (a) => {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(a));
+  } catch {
+    /* storage blocked: the list still works for this visit and in the URL */
+  }
+};
+const fmtNum = (n, d = 2) => (n === null || n === undefined ? "n/a" : Number(n).toLocaleString("en-US", { maximumFractionDigits: d, minimumFractionDigits: 0 }));
+const fmtUsd = (n) => (n === null || n === undefined ? "n/a" : "$" + Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 }));
+const short = (a) => (a.length > 16 ? a.slice(0, 6) + "..." + a.slice(-6) : a);
+const EXPLORE = (a) => (a.startsWith("0x") ? "https://etherscan.io/address/" + a : "https://solscan.io/account/" + a);
+
+function positionCard(p) {
+  const recent = p.recent
+    ? p.recent.length
+      ? `<ul class="tx">${p.recent
+          .map((t) => `<li><span class="tag ${t.direction === "in" ? "out-correct" : t.direction === "out" ? "out-wrong" : ""}">${esc(t.direction)}</span> ${fmtNum(t.amount, 4)} ${esc(p.symbol)} <span class="muted">${t.time ? esc(when(t.time)) : ""}</span> <span class="mono muted">${esc(short(t.signature))}</span></li>`)
+          .join("")}</ul>`
+      : `<p class="muted">No transfers found in the window.</p>`
+    : "";
+  return `<div class="pos">
+    <div class="pos-head"><h4>${esc(p.symbol)} <span class="muted">on ${esc(p.chain)}</span></h4><span class="tag ${p.frozen ? "out-wrong" : ""}">${p.frozen ? "frozen or blocked" : "not frozen"}</span></div>
+    <dl class="kv">
+      <div><dt>Balance</dt><dd>${fmtNum(p.balance, 6)} ${esc(p.symbol)}</dd></div>
+      <div><dt>Value at latest price</dt><dd>${fmtUsd(p.valueUsd)}${p.priceUsd !== null ? ` at ${p.priceUsd.toFixed(4)}` : ""}<br><span class="muted">${esc(p.priceBasis)}</span></dd></div>
+      <div><dt>Share of supply</dt><dd>${p.shareOfSupplyPct === null ? "n/a" : p.shareOfSupplyPct.toFixed(4) + "% of " + fmtNum(p.supply, 2) + " on " + esc(p.chain)}</dd></div>
+      <div><dt>Account state</dt><dd>${esc(p.accountState)}</dd></div>
+      <div><dt>Allowlist</dt><dd>${esc(p.allowlist)}</dd></div>
+      ${p.tokenAccount ? `<div><dt>Token account</dt><dd>${esc(p.tokenAccount)}</dd></div>` : ""}
+    </dl>
+    <div><div class="sub-h">Recent transfers</div>${recent}<p class="muted" style="font-size:13px">${esc(p.recentNote)}</p></div>
+    ${sources(p.sources)}
+  </div>`;
+}
+
+function addressResult(r, label) {
+  const risks = r.risks.length
+    ? `<ul class="risks">${r.risks.map((k) => `<li><i class="dot ${k.status === "flag" ? "flag" : "hold"}"></i><span><b>${esc(k.assetId.toUpperCase())}: ${esc(k.title)}</b><br><span class="muted">${esc(k.detail.length > 420 ? k.detail.slice(0, 417) + "..." : k.detail)}</span></span></li>`).join("")}</ul>`
+    : "";
+  return `<article class="card hold">
+    <div class="pos-head"><div><h3>${label ? esc(label) : "Address"}</h3><p class="mint"><a href="${esc(EXPLORE(r.address))}" target="_blank" rel="noopener">${esc(r.address)}</a></p></div><span class="tag">${esc(r.kind)}</span></div>
+    ${r.error ? `<div class="err">${esc(r.error)}</div>` : ""}
+    ${r.positions.length ? r.positions.map(positionCard).join("") : r.error ? "" : `<p class="muted">No balance of USTB, BUIDL or USDY found.</p>`}
+    ${risks ? `<div><div class="sub-h">Asset-level findings that affect these holdings</div>${risks}</div>` : ""}
+    ${r.notRead.length ? `<div><div class="sub-h">Could not be read</div><ul class="src">${r.notRead.map((n) => `<li><b>${esc(n.what)}</b>: ${esc(n.why)}</li>`).join("")}</ul></div>` : ""}
+    ${r.empty.length ? `<p class="muted" style="font-size:13px">Read, nothing held: ${r.empty.map(esc).join("; ")}.</p>` : ""}
+  </article>`;
+}
+
+async function renderHoldings(arg) {
+  let addrs = arg ? decodeURIComponent(arg).split(",").filter(Boolean).slice(0, 5) : loadAddrs();
+  const ex = (await api("/api/holdings/examples")).examples;
+  const labelOf = (a) => ex.find((e) => e.address === a)?.label;
+  const setAddrs = (a) => {
+    addrs = [...new Set(a)].slice(0, 5);
+    saveAddrs(addrs);
+    history.replaceState(null, "", "#holdings" + (addrs.length ? "/" + encodeURIComponent(addrs.join(",")) : ""));
+    draw();
+  };
+  const draw = () => {
+    const chips = addrs.map((a) => `<span class="chip"><span class="mono">${esc(labelOf(a) || short(a))}</span><button type="button" data-rm="${esc(a)}" aria-label="Remove ${esc(short(a))}">x</button></span>`).join("");
+    app.innerHTML = `
+      <div class="stack"><h1>Holdings</h1>
+      <p class="muted" style="max-width:68ch">Asset managers, custodians and fund administrators can paste the public addresses they hold USTB, BUIDL or USDY at and get an independent, read-only check of the positions: balance, value at the latest NAV or price, share of supply, frozen or blocklisted state, recent transfers, and any asset-level finding that touches the position, each with its source and fetch time. No wallet connection, no signing. The address list stays in this browser or in the link, never on the server.</p></div>
+      <form class="addbar" id="add"><label class="sr" for="addr">Public address (Solana or EVM)</label><input id="addr" type="text" autocomplete="off" spellcheck="false" placeholder="Solana or 0x address, up to 5" /><button class="btn primary" type="submit">Add</button></form>
+      <div class="chips" aria-label="Watched addresses">${chips || '<span class="muted">No addresses yet.</span>'}</div>
+      <div class="examples"><span class="muted">Examples, labelled as such (public chain data):</span>${ex.map((e) => `<button type="button" class="btn" data-ex="${esc(e.address)}" title="${esc(e.note)}">${esc(e.label)}</button>`).join("")}</div>
+      ${modeStrip()}
+      ${state.mode === "recorded" ? '<p class="muted">This server replays recorded responses, so only the example addresses can be read here.</p>' : ""}
+      <div id="out" aria-live="polite">${addrs.length ? '<p class="muted">Reading</p>' : ""}</div>`;
+    app.querySelector("#add").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const v = app.querySelector("#addr").value.trim();
+      if (v) setAddrs([...addrs, v]);
+    });
+    app.querySelectorAll("[data-rm]").forEach((b) => b.addEventListener("click", () => setAddrs(addrs.filter((a) => a !== b.dataset.rm))));
+    app.querySelectorAll("[data-ex]").forEach((b) => b.addEventListener("click", () => setAddrs([...addrs, b.dataset.ex])));
+    if (addrs.length) load();
+  };
+  const load = async () => {
+    const out = app.querySelector("#out");
+    try {
+      const r = await fetch("/api/holdings?" + addrs.map((a) => "address=" + encodeURIComponent(a)).join("&"), { headers: { accept: "application/json" } });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "answered " + r.status);
+      out.innerHTML = `<p class="muted">Read ${esc(when(j.generatedAt))}${j.cached ? " (shown again from a 45 second cache)" : ""}.</p><div class="stack">${j.results.map((x) => addressResult(x, labelOf(x.address))).join("")}</div>`;
+    } catch (e) {
+      out.innerHTML = `<div class="err">${esc(e.message)}</div>`;
+    }
+  };
+  draw();
+}
+
 async function route() {
   const [tab, arg] = (location.hash.replace(/^#/, "") || "assets").split("/");
-  const current = ["assets", "detail", "frontier", "how"].includes(tab) ? tab : "assets";
+  const current = ["assets", "detail", "holdings", "frontier", "how"].includes(tab) ? tab : "assets";
   tabs.forEach((t) => t.setAttribute("aria-selected", String(t.dataset.tab === current)));
   try {
     state = await api("/api/state");
     if (current === "assets") renderAssets();
     else if (current === "detail") await renderDetail(["ustb", "buidl", "usdy"].includes(arg) ? arg : selected);
+    else if (current === "holdings") await renderHoldings(arg);
     else if (current === "frontier") await renderFrontier();
     else renderHow();
   } catch (e) {

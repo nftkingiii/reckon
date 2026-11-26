@@ -4,6 +4,7 @@ import { liveCtx, recordingFetch, saveCaptures, type Capture } from "../src/net.
 import { runPass } from "../src/monitor.ts";
 import { Store } from "../src/store.ts";
 import { buyOff } from "../src/telegraph.ts";
+import { EXAMPLES, readHoldings } from "../src/holdings.ts";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -15,6 +16,9 @@ const startedAt = new Date();
 const ctx = { ...real, fetch: recordingFetch(real.fetch, sink), now: () => startedAt.getTime() };
 const store = new Store(mkdtempSync(join(tmpdir(), "reckon-record-")));
 const { reports, errors } = await runPass({ ctx, store, mode: "live", buy: buyOff(), log: (l) => console.log(l) });
+// The holdings tab's example addresses, so the recorded server and the tests can replay them.
+const reportMap = Object.fromEntries(reports.map((r) => [r.assetId, r]));
+for (const e of EXAMPLES) await readHoldings(ctx, [e.address], reportMap);
 saveCaptures(out, {
   recordedAt: startedAt.toISOString(),
   label: `Real public responses captured read-only on ${startedAt.toISOString().slice(0, 10)}. No Telegraph call was made.`,

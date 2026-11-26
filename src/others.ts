@@ -16,7 +16,7 @@ const SUI_TYPE = "0x960b531667636f39e85867775f52f6b1f220a058c4de786905bdf761e06a
 const APTOS_ACCOUNT = "0xcfea864b32833f157f042618bd845145256b1bf4c0da34a7013b76e42daa53cc";
 const STELLAR = { code: "USDY", issuer: "GAJMPX5NBOG6TQFPQGRABJEEB2YE7RFRLUKJDZAZGAD5GFX4J7TADAZ6" };
 const NOBLE_ENDPOINTS = ["https://noble-api.polkachu.com", "https://api.noble.xyz"];
-const TEMPO_RPC = "https://rpc.tempo.xyz";
+export const TEMPO_RPC = "https://rpc.tempo.xyz";
 export const TEMPO_USDY = "0x20c000000000000000000000D479B9f6eC0ceFf9";
 
 export async function readSui(ctx: Ctx): Promise<OtherSupply> {

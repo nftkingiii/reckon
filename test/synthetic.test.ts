@@ -76,7 +76,7 @@ test("SYNTHETIC: issuer figures that are ten days old are flagged as stale", asy
 });
 
 test("SYNTHETIC: a Solana token count on the issuer page that is 3% off is flagged", async () => {
-  const file = mutated((c) => (c.url === "https://superstate.com/assets/ustb" ? { ...c, text: c.text.replace("81,654.76", "84,104.40") } : c));
+  const file = mutated((c) => (c.url === "https://superstate.com/assets/ustb" ? { ...c, text: c.text.replace("110,538.81", "113,855.00") } : c));
   const r = await run(file);
   assert.equal(row(r.rows, "issuer-supply").status, "flag");
   assert.match(row(r.rows, "issuer-supply").values.Solana, /FLAG/);
@@ -85,7 +85,7 @@ test("SYNTHETIC: a Solana token count on the issuer page that is 3% off is flagg
 test("SYNTHETIC: an AUM that does not match the network values is flagged", async () => {
   const file = mutated((c) => {
     if (c.url !== "https://superstate.com/assets/ustb") return c;
-    return { ...c, text: c.text.replace(/\$685,\d{3},\d{3}/g, "$712,000,000") };
+    return { ...c, text: c.text.replace(/\$672,\d{3},\d{3}/g, "$712,000,000") };
   });
   const r = await run(file);
   assert.equal(row(r.rows, "issuer-nav-aum").status, "flag");

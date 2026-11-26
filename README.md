@@ -23,6 +23,14 @@ Each row on the page is Established, Flagged or Cannot check, with its values, s
 5. Entities: GLEIF is read directly for pinned LEIs; sanctions screening is bought through Telegraph.
 6. An independent supply read bought through Telegraph and set beside Reckon's own.
 
+## Holdings
+
+The Holdings tab takes up to five public Solana or EVM addresses (read-only, no wallet connection, no signing) and reports, per position in USTB, BUIDL or USDY: balance, value at the latest NAV or price, share of supply, frozen or blocklisted state, recent transfers, and the asset-level findings that affect the position. The address list is kept only in the browser (localStorage) or the URL; the server stores nothing and rate limits the endpoint (`GET /api/holdings?address=...`, 6 requests a minute per client, a 45 second cache, three reads at a time). Four public example addresses are provided and labelled as examples.
+
+## The USDY investigation
+
+Reckon's USDY row reconciles the 12-chain supply against Ondo's page, subtracting documented adjustments (bridge escrow, Ondo-listed addresses, wrapper double counts) and showing the residual. The method, addresses and what is and is not explained are in [docs/usdy-investigation.md](docs/usdy-investigation.md), also served at `/docs/usdy-investigation.md`.
+
 ## How it uses Telegraph
 
 Telegraph purchases are optional and off unless `RECKON_BUY=1`. When on, Reckon pays per ask from a Telegraph escrow balance on the testnet node (Sepolia test USDC), using the signed 402 escrow flow. The page labels bought rows as live, testnet.
@@ -67,6 +75,6 @@ node scripts/record.ts                      # capture a new read-only fixture
 - Agreement between the chain and an issuer's page is agreement with the issuer's own ledger. It is not an audit and does not prove the underlying assets exist.
 - Issuer pages are read as published. The USTB page data comes from an undocumented endpoint, so the rows that depend on it fail closed if it changes.
 - Solana cannot read an account at a chosen slot. The two RPC reads are pinned to the lowest finalized slot the nodes report and must be identical.
-- Summing a token's supply across chains can count a bridged token twice. Sui, Aptos, Stellar and Tempo are read from a single endpoint.
+- Ondo documents its bridge as burn-and-mint, so the cross-chain sum should not double count bridged tokens, but the sum still exceeds the issuer's figure by about 20%. Two Stellar accounts holding 447M USDY match the size of the gap; nothing public says who controls them, so they are shown beside the result and not subtracted. Sui, Aptos, Stellar and Tempo are read from a single endpoint.
 - BUIDL has no issuer figure to reconcile, and USDY's attestation PDFs cannot be read.
 - Reckon reports readings and cross-checks. It is not investment advice.

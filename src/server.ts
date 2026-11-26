@@ -4,6 +4,9 @@
 //   GET /api/assets/:id             latest report and the history of diffs
 //   GET /api/assets/:id/report.json | report.md   downloads
 //   GET /api/frontier               the five questions, Reckon's own ground truth, and model results when a separate step fills them
+//   GET /api/holdings?address=...   read-only holdings of up to five public addresses (rate limited, nothing stored)
+//   GET /api/holdings/examples      public example addresses
+//   GET /docs/usdy-investigation.md the USDY investigation
 //   GET /health
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { existsSync, readFileSync, statSync } from "node:fs";
@@ -17,6 +20,8 @@ import { toMarkdown } from "./report.ts";
 import { Store } from "./store.ts";
 import { buyFromEnv, ENGINE_ASK_USD, MINERS, SANCTIONS_CHAIN, type BuyConfig } from "./telegraph.ts";
 import { frontierView } from "./frontier.ts";
+import { EXAMPLES, MAX_ADDRESSES, readHoldings, type HoldingsView } from "./holdings.ts";
+import { Limiter, TtlCache } from "./ratelimit.ts";
 import { TESTNET_LABEL } from "./governor.ts";
 import type { AssetReport, Mode } from "./types.ts";
 import { errText, iso } from "./util.ts";
@@ -40,10 +45,14 @@ export interface ServerOptions {
   intervalMs: number;
   recordedAt?: string;
   recordedLabel?: string;
+  /** Holdings reads allowed per client per minute. */
+  holdingsPerMinute?: number;
 }
 
 export function createApp(o: ServerOptions) {
   let lastRunAt: string | null = null;
+  const limiter = new Limiter(o.holdingsPerMinute ?? 6, 60_000, 3);
+  const holdCache = new TtlCache<HoldingsView>(45_000);
   let lastErrors: { assetId: string; error: string }[] = [];
   const json = (res: ServerResponse, code: number, body: unknown, extra: Record<string, string> = {}) => {
     res.writeHead(code, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...extra });
@@ -107,6 +116,28 @@ export function createApp(o: ServerOptions) {
       const path = url.pathname;
       if (path === "/health") return json(res, 200, { ok: true, mode: o.mode, lastRunAt });
       if (path === "/api/state") return json(res, 200, state());
+      if (path === "/api/holdings/examples") return json(res, 200, { examples: EXAMPLES, max: MAX_ADDRESSES });
+      if (path === "/api/holdings") {
+        const addrs = [...new Set(url.searchParams.getAll("address").flatMap((a) => a.split(",")).map((a) => a.trim()).filter(Boolean))];
+        if (!addrs.length) return json(res, 400, { error: "give at least one address" });
+        if (addrs.length > MAX_ADDRESSES) return json(res, 400, { error: `at most ${MAX_ADDRESSES} addresses` });
+        const client = String(req.headers["x-forwarded-for"] ?? "").split(",")[0]!.trim() || req.socket.remoteAddress || "unknown";
+        const key = addrs.join(",");
+        const cached = holdCache.get(key);
+        if (cached) return json(res, 200, { ...cached, mode: o.mode, cached: true });
+        const wait = limiter.take(client);
+        if (wait) return json(res, 429, { error: `Too many holdings requests. Try again in ${wait} seconds.` }, { "retry-after": String(wait) });
+        const reports = Object.fromEntries(ASSETS.map((a) => [a.id, o.store.report(a.id)]));
+        void limiter.run(() => readHoldings(o.ctx, addrs, reports)).then(
+          (v) => {
+            if (v === "busy") return json(res, 503, { error: "Reckon is reading other addresses right now. Try again shortly." }, { "retry-after": "10" });
+            holdCache.set(key, v);
+            json(res, 200, { ...v, mode: o.mode, cached: false });
+          },
+          (e) => json(res, 500, { error: errText(e) }),
+        );
+        return;
+      }
       if (path === "/api/frontier") return json(res, 200, frontierView(ASSETS.map((a) => o.store.report(a.id)).filter((r): r is AssetReport => !!r)));
       const m = /^\/api\/assets\/([a-z]+)(?:\/report\.(json|md))?$/.exec(path);
       if (m) {
@@ -120,6 +151,12 @@ export function createApp(o: ServerOptions) {
           return void res.end(toMarkdown(report));
         }
         return json(res, 200, { report, history: o.store.history(id, 60), spec: { fund: byId(id)!.fund, issuer: byId(id)!.issuer, mintListing: byId(id)!.mintListing } });
+      }
+      if (path === "/docs/usdy-investigation.md") {
+        const f = join(ROOT, "docs", "usdy-investigation.md");
+        if (!existsSync(f)) return json(res, 404, { error: "not found" });
+        res.writeHead(200, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-cache" });
+        return void res.end(readFileSync(f));
       }
       if (path.startsWith("/api/")) return json(res, 404, { error: "not found" });
       return serveStatic(res, path === "/" ? "" : path);
