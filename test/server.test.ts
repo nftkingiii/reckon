@@ -43,7 +43,10 @@ test("server: detail, both downloads, the frontier table and the page itself", a
     assert.match(await md.text(), /# Ondo USDY: Reckon report/);
     const f = (await (await fetch(`${s.base}/api/frontier`)).json()) as any;
     assert.equal(f.rows.length, 5);
-    assert.equal(f.results.status, "not run");
+    assert.equal(f.results.status, "run");
+    assert.equal(f.results.runDate, "2026-11-26");
+    assert.equal(f.results.models.length, 3);
+    assert.equal(f.results.answers.q2.opus.outcome, "partly right");
     assert.match(f.rows[0].truth, /USTB/);
     const html = await (await fetch(`${s.base}/`)).text();
     assert.match(html, /Frontier comparison/);

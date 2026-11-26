@@ -78,6 +78,10 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
 .tag { font-family: var(--mono); font-size: 12px; line-height: 20px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 4px; color: var(--text-2); white-space: nowrap; }
 .tag.live { color: var(--pass); border-color: var(--pass); }
 .tag.paid { color: var(--accent); border-color: var(--accent); }
+.tag.out-correct { color: var(--pass); border-color: var(--pass); }
+.tag.out-wrong { color: var(--flag); border-color: var(--flag); }
+.tag.out-partly-right { color: var(--text); }
+.tag.out-abstained { color: var(--text-3); }
 .tag.rec { color: var(--text); }
 
 /* asset cards */

@@ -1,6 +1,49 @@
 {
-  "status": "not run",
-  "note": "No model has been called. A separate step will add the models, the dates, whether tools were on, and each run's output and outcome.",
-  "models": [],
-  "runs": []
+  "status": "run",
+  "runDate": "2026-11-26",
+  "method": "Each model was asked the same 5 questions about Superstate USTB in a fresh session with no conversation context, instructed to use no tools (verified: 0 tool calls in each run), answering from its own knowledge only. One run per model. Models: Claude Opus 5.5, Claude Sonnet 5.5, Claude Haiku 5.5 (via Claude Code subagents). A Claude Fable 5.2 run was attempted and failed for account-credit reasons, so it is not included. Ground truth: Reckon's live reads (on-chain, issuer page, SEC via Telegraph, GLEIF).",
+  "scoring": [
+    ["correct", "exact or within tolerance"],
+    ["partly right", "general design right, specifics unverified"],
+    ["abstained", "said it can't know"],
+    ["wrong", "confident and incorrect"]
+  ],
+  "models": [
+    { "id": "opus", "name": "Opus 5.5" },
+    { "id": "sonnet", "name": "Sonnet 5.5" },
+    { "id": "haiku", "name": "Haiku 5.5" }
+  ],
+  "answers": {
+    "q1": { "opus": { "outcome": "abstained" }, "sonnet": { "outcome": "abstained" }, "haiku": { "outcome": "abstained" } },
+    "q2": {
+      "opus": { "outcome": "partly right", "text": "guessed Token-2022, default frozen, issuer-held authority; address unknown" },
+      "sonnet": { "outcome": "abstained", "text": "mentioned the mechanism as possible" },
+      "haiku": { "outcome": "abstained", "text": "guessed allowlisting" }
+    },
+    "q3": {
+      "opus": { "outcome": "abstained", "text": "used the fund's old name (now Invesco-branded)" },
+      "sonnet": { "outcome": "abstained" },
+      "haiku": { "outcome": "abstained" }
+    },
+    "q4": {
+      "opus": { "outcome": "abstained", "text": "\"hundreds of millions, mostly Ethereum\"" },
+      "sonnet": { "outcome": "abstained" },
+      "haiku": { "outcome": "abstained" }
+    },
+    "q5": {
+      "opus": { "outcome": "abstained", "text": "cited a stale 2025 range ($10.5-11)" },
+      "sonnet": { "outcome": "abstained", "text": "\"low-$11 range\", unsure" },
+      "haiku": { "outcome": "abstained" }
+    }
+  },
+  "recordedReckon": {
+    "q1": "81,654.762282 (two RPCs agree)",
+    "q2": "one key holds freeze authority and permanent delegate; default account state frozen (Token-2022)",
+    "q3": "Form D/A 2026-07-14, CIK 0002004367",
+    "q4": "0.13% of about $692M",
+    "q5": "NAV about $11.29; supply matches exactly"
+  },
+  "result": "Across 15 answers, the models gave 0 exact answers and 1 partly-right answer. They did not hallucinate numbers: nearly every answer was an honest \"can't know without live data\". Reckon answers all five from live sources with receipts. The gap is not that models are wrong; it's that they can't know, and Reckon can.",
+  "limits": "One run per model, Claude models only, tools off (a model with web search would do better on Q3-Q5); the question set and truth were written by us; the truth comes from Reckon's own reads and the issuer's page.",
+  "note": "Results from the run of 2026-11-26."
 }

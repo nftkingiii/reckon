@@ -74,6 +74,10 @@ export function groundTruth(questions: Question[], reports: AssetReport[]): Trut
 
 export function frontierView(reports: AssetReport[]) {
   const q = JSON.parse(readFileSync(dir("questions.json"), "utf8")) as { about: string; grading: unknown; questions: Question[] };
-  const results = JSON.parse(readFileSync(dir("results.json"), "utf8")) as { status: string; note: string; models: string[]; runs: unknown[] };
-  return { about: q.about, grading: q.grading, results, rows: groundTruth(q.questions, reports) };
+  const results = JSON.parse(readFileSync(dir("results.json"), "utf8")) as { status: string; recordedReckon?: Record<string, string>; runDate?: string; [k: string]: unknown };
+  // Reckon's column comes from the live report. Only when no reading exists (a fresh start) does it fall back to the value recorded with the run.
+  const rows = groundTruth(q.questions, reports).map((r) =>
+    r.truth || !results.recordedReckon?.[r.id] ? r : { ...r, truth: results.recordedReckon[r.id]!, basis: `Recorded with the ${results.runDate ?? ""} run; no live reading is available yet` },
+  );
+  return { about: q.about, grading: q.grading, results, rows };
 }

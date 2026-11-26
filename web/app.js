@@ -164,28 +164,33 @@ function bindSeg() {
 async function renderFrontier() {
   app.innerHTML = `<h1>Frontier comparison</h1><p class="muted">Loading</p>`;
   const f = await api("/api/frontier");
-  const ran = f.results.runs.length > 0;
+  const r = f.results;
+  const ran = r.status === "run";
+  const cellFor = (qid, m) => {
+    const a = r.answers?.[qid]?.[m.id];
+    if (!a) return `<td data-l="${esc(m.name)}" class="na">Not run</td>`;
+    return `<td data-l="${esc(m.name)}"><span class="tag out-${esc(a.outcome.replace(" ", "-"))}">${esc(a.outcome)}</span>${a.text ? `<div class="muted" style="font-size:13px;margin-top:8px">${esc(a.text)}</div>` : ""}</td>`;
+  };
+  const models = ran ? r.models : [];
+  const head = `<th>Question</th><th>Reckon (live)</th>${ran ? models.map((m) => `<th>${esc(m.name)}</th>`).join("") : "<th>Model answers</th>"}`;
+  const rows = f.rows
+    .map(
+      (q, i) => `<tr>
+        <td data-l="Question"><span class="mono muted">${i + 1}</span> ${esc(q.text)}</td>
+        <td data-l="Reckon (live)">${q.truth ? `${esc(q.truth)}<div class="muted" style="font-size:13px;margin-top:4px">${esc(String(q.basis).replace(/\.$/, ""))}. As of ${esc(q.asOf && q.asOf.length > 10 ? when(q.asOf) : q.asOf)}.</div>` : `<span class="muted">No reading available. ${esc(q.basis)}</span>`}</td>
+        ${ran ? models.map((m) => cellFor(q.id, m)).join("") : `<td data-l="Model answers" class="na">Not run</td>`}</tr>`,
+    )
+    .join("");
   app.innerHTML = `
     <div class="stack"><h1>Frontier comparison</h1>
-    <p class="muted" style="max-width:64ch">${esc(f.about)}</p></div>
-    <div class="mode ${ran ? "" : "recorded"}" role="note"><div class="row"><span class="tag">${ran ? "Results in" : "Not run"}</span><strong>${ran ? "Model runs are listed below." : "No model has been called."}</strong></div><div class="muted">${esc(f.results.note)}</div></div>
-    <div class="tablewrap"><table>
-      <thead><tr><th>Question</th><th>Reckon's reading (ground truth)</th><th>Model answers</th></tr></thead>
-      <tbody>${f.rows
-        .map(
-          (r) => `<tr>
-        <td data-l="Question">${esc(r.text)}</td>
-        <td data-l="Reckon's reading">${r.truth ? `${esc(r.truth)}<div class="muted" style="font-size:13px;margin-top:4px">${esc(r.basis.replace(/\.$/, ""))}. As of ${esc(r.asOf && r.asOf.length > 10 ? when(r.asOf) : r.asOf)}.</div>` : `<span class="muted">No reading available. ${esc(r.basis)}</span>`}</td>
-        <td data-l="Model answers" class="na">${ran ? "see runs" : "Not run"}</td></tr>`,
-        )
-        .join("")}</tbody></table></div>
-    <section class="prose"><h2>How the comparison will be graded</h2>
-      <ul>
-        <li>Dates and addresses: exact match.</li>
-        <li>Numbers: ${esc(f.grading.numbers)}.</li>
-        <li>Three outcomes are counted separately: ${f.grading.outcomes_counted_separately.map(esc).join(", ")}.</li>
-        <li>${esc(f.grading.note)}</li>
-      </ul></section>`;
+    <p class="muted" style="max-width:64ch">${ran ? "The same five questions about USTB, put to three models with no tools and no live data, set beside what Reckon reads live." : esc(f.about)}</p></div>
+    <div class="mode ${ran ? "" : "recorded"}" role="note"><div class="row"><span class="tag">${ran ? "Run " + esc(r.runDate) : "Not run"}</span><strong>${ran ? "Model answers are from one run per model on this date." : "No model has been called."}</strong></div><div class="muted">${esc(ran ? "Reckon's column is its current live reading, not the value from the run date." : r.note)}</div></div>
+    <div class="tablewrap"><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>
+    ${ran ? `<section class="prose"><h2>Result</h2><p>${esc(r.result)}</p>
+      <h2>Method</h2><p>${esc(r.method)}</p>
+      <h2>Scoring</h2><ul>${r.scoring.map(([k, v]) => `<li><b>${esc(k)}</b>: ${esc(v)}</li>`).join("")}</ul>
+      <h2>Limits</h2><p>${esc(r.limits)}</p></section>` : `<section class="prose"><h2>How the comparison will be graded</h2>
+      <ul><li>Dates and addresses: exact match.</li><li>Numbers: ${esc(f.grading.numbers)}.</li><li>Three outcomes are counted separately: ${f.grading.outcomes_counted_separately.map(esc).join(", ")}.</li><li>${esc(f.grading.note)}</li></ul></section>`}`;
 }
 
 function renderHow() {
