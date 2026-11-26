@@ -1,0 +1,28 @@
+// Holdings tab (built-in example addresses only) and the USDY investigation doc. Read-only.
+import { chromium } from 'playwright';
+import { writeFileSync } from 'node:fs';
+const BASE = 'https://reckon-app.up.railway.app';
+const b = await chromium.launch({ channel: 'msedge' });
+const ctx = await b.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2, colorScheme: 'dark' });
+const p = await ctx.newPage();
+const meta = {};
+await p.goto('about:blank'); await p.goto(BASE + '/#holdings'); await p.waitForSelector('.examples button', { timeout: 90000 }); await p.waitForTimeout(1200);
+await p.screenshot({ path: 'assets/cap/holdings-empty.png', fullPage: true });
+const btns = await p.$$eval('.examples button', bs => bs.map(x => x.textContent));
+console.log(btns);
+const A1 = 'Dmp5cuefdJwfryvg9NK7FB17oSw3FnoUAq2JXmUj2dmH', A2 = 'AGXrswVDRoUf62UX9voTXv6TCGw6fBUEwDpyUd9YdZfD';
+await p.goto('about:blank'); await p.goto(BASE + '/#holdings/' + A1);
+await p.waitForSelector('article.hold .pos', { timeout: 120000 }); await p.waitForTimeout(1500);
+await p.screenshot({ path: 'assets/cap/holdings-ustb.png', fullPage: true });
+meta.ustb = await p.evaluate(() => { const r = e => { const b = e.getBoundingClientRect(); return { x: b.x, y: b.y + scrollY, w: b.width, h: b.height }; }; return { H: document.documentElement.scrollHeight, card: r(document.querySelector('article.hold')), pos: r(document.querySelector('.pos')), chips: r(document.querySelector('.chips')), ex: r(document.querySelector('.examples')), text: document.querySelector('article.hold').innerText.slice(0, 1800) }; });
+console.log(meta.ustb.text);
+await p.goto('about:blank'); await p.goto(BASE + '/#holdings/' + A1 + '%2C' + A2);
+await p.waitForFunction(() => document.querySelectorAll('article.hold').length >= 2, null, { timeout: 120000 }); await p.waitForTimeout(2000);
+await p.screenshot({ path: 'assets/cap/holdings-both.png', fullPage: true });
+meta.both = await p.evaluate(() => { const r = e => { const b = e.getBoundingClientRect(); return { x: b.x, y: b.y + scrollY, w: b.width, h: b.height }; }; return { H: document.documentElement.scrollHeight, cards: [...document.querySelectorAll('article.hold')].map(r), pos: [...document.querySelectorAll('.pos')].map(r), risks: [...document.querySelectorAll('.risks')].map(r), text: [...document.querySelectorAll('article.hold')].map(a => a.innerText.slice(0, 1500)) }; });
+console.log(meta.both.text[1]);
+await p.goto(BASE + '/docs/usdy-investigation.md'); await p.waitForTimeout(800);
+await p.screenshot({ path: 'assets/cap/usdy-doc.png', fullPage: false });
+meta.doc = await p.evaluate(() => document.body.innerText.length);
+writeFileSync('assets/cap/meta3.json', JSON.stringify(meta, null, 1));
+await b.close();

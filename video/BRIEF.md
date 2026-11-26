@@ -12,7 +12,8 @@
 
 ## Evidence capture
 - All product screens: Playwright (Edge) against https://reckon-app.up.railway.app, desktop 1280x800 css, DPR 2, GET only, read-only. Scripts: shots.mjs, shots2.mjs. Output assets/cap/*.png, meta.json, crops.json.
-- Capture time (data/fetched_at.txt): 2026-11-26T04:32:54Z for API JSON; page screenshots 04:32-04:40 UTC. The server had just redeployed (about 04:28 UTC), so history holds ONE snapshot per asset: "Controls against the previous snapshot" shows Cannot check (first snapshot). No mint/diff event exists in history, so the film has NO "Reckon caught a mint" beat. USTB's "7 mints (128,211.113356)" in the activity row is a 12-transaction window 2026-11-12..2026-11-25 and is shown only as that.
+- FINAL RE-CAPTURE 2026-11-26 09:46-10:00 UTC (Reckon commit 5a07fd0 deployed): API JSON fetched 09:47:56Z (data/), all page screenshots re-taken 09:51-09:57 UTC (assets, detail pages, row crops, Holdings, USDY doc). Values below marked [final] are from that capture and supersede the 04:32 values in the earlier rows.
+- First capture time (superseded): 2026-11-26T04:32:54Z for API JSON; page screenshots 04:32-04:40 UTC. The server had just redeployed (about 04:28 UTC), so history holds ONE snapshot per asset: "Controls against the previous snapshot" shows Cannot check (first snapshot). No mint/diff event exists in history, so the film has NO "Reckon caught a mint" beat. USTB's "7 mints (128,211.113356)" in the activity row is a 12-transaction window 2026-11-12..2026-11-25 and is shown only as that.
 - Values move: the film uses the capture values below. Re-read and update before final assembly if captures are redone.
 
 ## Truth sheet (the film may only show what is here)
@@ -43,3 +44,15 @@ Synthesized (sfx.mjs): ticks and clicks on UI contact, soft thump on bar starts 
 
 ## Gates
 1 brief (taken from the coordinator's brief; no live user to confirm) · 2 shot list · 3 review rounds in docs/review_log.md · 4 verify deterministic · 5 render + mix + check · 6 deliverables in out/.
+
+## Final-capture truth sheet additions [final], 2026-11-26 09:46-09:57 UTC
+| Claim / number | Evidence | Status |
+|---|---|---|
+| Counts: USTB 12 established / 0 flagged / 1 cannot check; BUIDL 7 / 0 / 2; USDY 8 / 2 / 3 | /api/assets/* reports generated 09:46:03Z, 09:46:37Z, 09:47:02Z | live |
+| USTB NAV x tokens: network values add to $672,651,373.82 vs reported $672,651,375; implied NAV 11.2932 | row issuer-nav-aum, 09:46Z | live |
+| USDY reworked row: raw sum 2,058,136,174 tokens ($2,376,154,709) less 0 locked in bridges, 0 at Ondo-listed addresses, 0 wrapper double counts = residual +$406,154,709 (+20.6%) vs issuer's $1,970,000,000, "unexplained by documented adjustments" | usdy-flag1.png (page 09:53 UTC) | live |
+| USDY: two Stellar accounts hold 447,289,749 tokens ($516,403,946); one alone is 100.4% of the raw gap; nothing public says who controls them (a lead, not a finding) | same row text | live; inference |
+| USDY doc: "1. Bridged supply counted twice. Closes 0 tokens (upper bound 3.2M, under 1%)" | https://reckon-app.up.railway.app/docs/usdy-investigation.md, usdy-doc.png | live |
+| USDY 156.90% vs 122.34%: footnote 5 says the ratio excludes US Treasuries used for structured financing (Opt-Out Lender Underlyings), so it is computed on a different base and cannot be reproduced from the headline figures | usdy-flag2.png | live |
+| Holdings tab, built-in EXAMPLE addresses only (public chain data, owner unknown): example USTB holder 110,486.371703 USTB, $1,247,741 at 11.2932, not frozen, 99.9526% of Solana USTB supply; example USDY holder 833,809.918745 USDY, $962,648 at 1.1545, not frozen, 12.2379% of Solana USDY supply; asset findings (the USDY residual and footnote finding) listed under the position | holdings-both.png, read 09:57 UTC | live |
+- No private address was entered anywhere.

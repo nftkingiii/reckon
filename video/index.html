@@ -20,7 +20,7 @@ const VSEG = [['s01', 0, 4.8], ['s06', 0, 7.2], ['s08', 0, 7.2], ['s11', 0, 7.2]
 const VDUR = VSEG.reduce((a, s) => a + s[2] - s[1], 0);
 window.FILM = { w: W, h: H, dur: P ? VDUR : END, fps: 30 };
 // Placeholders for beats still to be captured from the live site. Set false only after the real capture is wired in.
-const PENDING = { usdyInv: true, holdings: true };
+const PENDING = { usdyInv: false, holdings: false };
 
 // Reckon's own palette (web/style.css)
 const C = { bg: '#0b1017', panel: '#111823', panel2: '#161f2c', line: 'rgba(160,185,215,0.22)', ink: '#e4eaf2', mute: '#9aa9bd', dim: '#75869b',
@@ -30,7 +30,7 @@ const F = { d: '"Public Sans", system-ui, sans-serif', m: '"Plex Mono", ui-monos
 const cv = document.getElementById('c'); cv.width = W; cv.height = H;
 const g = cv.getContext('2d');
 const IMG = {};
-const NAMES = ['assets', 'how-top', 'ustb-top', 'ustb-supply', 'ustb-nav', 'ustb-filings', 'ustb-sanctions', 'ustb-tg', 'buidl-issuer', 'usdy-top', 'usdy-flag1', 'usdy-flag2', 'frontier'];
+const NAMES = ['assets', 'how-top', 'ustb-top', 'ustb-supply', 'ustb-nav', 'ustb-filings', 'ustb-sanctions', 'ustb-tg', 'buidl-issuer', 'usdy-top', 'usdy-flag1', 'usdy-flag2', 'frontier', 'holdings-both', 'usdy-doc'];
 function img(name) { const i = new Image(); i.src = `assets/cap/${name}.png`; IMG[name] = i; return i.decode().catch(() => { IMG[name] = null; console.warn('missing ' + name); }); }
 window.ready = Promise.all([
   ...[400, 500, 600, 700].map(w => document.fonts.load(`${w} 100px "Public Sans"`)),
@@ -169,7 +169,7 @@ S.s03 = { draw: segShot([{ t0: 0, t1: 7.2, img: 'assets',
   hl: [{ t0: 1.6, t1: 3.4, box: [96, 265, 1088, 102], col: C.pass }, { t0: 3.8, t1: 5.4, box: [96, 391, 1088, 209] }, { t0: 5.8, t1: 7.0, box: [648, 616, 536, 453], col: C.flag }],
   co: [{ t0: 1.5, t1: 3.5, k: 'LIVE', v: 'Every 15 min', s: 'Two Solana RPCs per mint, then issuer figures, regulators and entities.', col: C.pass },
        { t0: 3.7, t1: 5.5, k: 'SUPERSTATE USTB', v: '12 established', s: '0 flagged · 1 cannot check', col: C.accent },
-       { t0: 5.7, t1: 7.1, k: 'ONDO USDY', v: '2 flagged', s: '7 established · 4 cannot check', col: C.flag }] }],
+       { t0: 5.7, t1: 7.1, k: 'ONDO USDY', v: '2 flagged', s: '8 established · 3 cannot check', col: C.flag }] }],
   [[TN, C.pass, 1.5]], [['Three funds. One page. Read every 15 minutes.', .3, 6.9]]) };
 // 04 | the checks
 S.s04 = { draw: segShot([{ t0: 0, t1: 7.2, img: 'how-top',
@@ -198,7 +198,7 @@ S.s06 = { draw: segShot([
   { t0: 3.0, t1: 6.2, img: 'ustb-supply', cam: [[0, 380, 120, 800], [1.4, 420, 260, 800]], hl: [{ t0: .3, t1: 3.0, box: [0, 0, 1088, 110], col: C.pass }],
     co: [{ t0: .3, t1: 3.1, k: 'CHAIN VS ISSUER', v: 'Exact on 3 networks', s: 'Solana, Ethereum and Plume match the issuer’s own ledger. Not an audit.', col: C.pass }] },
   { t0: 6.2, t1: 8.6, img: 'ustb-nav', cam: [[0, 380, 120, 800]], hl: [{ t0: .3, t1: 2.4, box: [0, 0, 1088, 110], col: C.pass }],
-    co: [{ t0: .3, t1: 2.4, k: 'NAV × TOKENS', v: '$670,061,005.75', s: 'against the reported $670,061,007. Implied NAV 11.2929 on every network.', col: C.pass }] },
+    co: [{ t0: .3, t1: 2.4, k: 'NAV × TOKENS', v: '$672,651,373.82', s: 'against the reported $672,651,375. Implied NAV 11.2932 on every network.', col: C.pass }] },
   { t0: 8.6, t1: 12.0, img: 'ustb-top', cam: [[0, 1007, 1000, 480]], hl: [{ t0: .3, t1: 3.3, box: [831, 599, 352, 786], col: C.hold }],
     co: [{ t0: .3, t1: 3.3, k: 'CANNOT CHECK', v: 'The audit', s: 'Book-entry shares (about 30% of the fund) and custody of the bills are named as unchecked.', col: C.hold }] },
   ], [[TN, C.pass, 3.2, 6.0]], [['USTB reconciles exactly. Reckon also lists what it cannot see.', .4, 11.6]]) };
@@ -210,22 +210,31 @@ S.s07 = { draw: segShot([{ t0: 0, t1: 4.8, img: 'buidl-issuer', cam: [[0, 400, 1
 // 08 | USDY flagged
 S.s08 = { draw: segShot([
   { t0: 0, t1: 2.4, img: 'usdy-top', cam: [[0, 640, 700, 1280], [.8, 640, 975, 1100]], hl: [{ t0: .8, t1: 2.3, box: [463, 599, 352, 746], col: C.flag }],
-    co: [{ t0: .7, t1: 2.4, k: 'ONDO USDY', v: '2 flagged', s: '7 established · 4 cannot check', col: C.flag }] },
-  { t0: 2.4, t1: 4.8, img: 'usdy-flag1', cam: [[0, 420, 140, 840]], hl: [{ t0: .3, t1: 2.3, box: [0, 6, 1088, 104], col: C.flag }],
-    co: [{ t0: .3, t1: 2.4, k: 'ON CHAIN VS ISSUER', v: '+20.6%', s: '$2,376,091,803 across 12 chains against $1,970,000,000 outstanding.', col: C.flag }] },
-  { t0: 4.8, t1: 7.2, img: 'usdy-flag2', cam: [[0, 420, 140, 840]], hl: [{ t0: .3, t1: 2.3, box: [0, 6, 1088, 100], col: C.flag }],
-    co: [{ t0: .3, t1: 2.4, k: 'THE PAGE’S OWN ARITHMETIC', v: '156.90% vs 122.34%', s: 'Its stated ratio against its own figures. A finding to explain, not a proven error.', col: C.flag }] },
+    co: [{ t0: .7, t1: 2.4, k: 'ONDO USDY', v: '2 flagged', s: '8 established · 3 cannot check', col: C.flag }] },
+  { t0: 2.4, t1: 4.8, img: 'usdy-flag1', cam: [[0, 544, 110, 1088]], hl: [{ t0: .3, t1: 2.3, box: [0, 6, 1088, 104], col: C.flag }],
+    co: [{ t0: .3, t1: 2.4, k: 'ON CHAIN VS ISSUER', v: '+20.6%', s: 'Raw sum $2,376,154,709 across 12 chains against $1,970,000,000 outstanding.', col: C.flag }] },
+  { t0: 4.8, t1: 7.2, img: 'usdy-flag2', cam: [[0, 544, 110, 1088]], hl: [{ t0: .3, t1: 2.3, box: [0, 40, 1088, 95], col: C.flag }],
+    co: [{ t0: .3, t1: 2.4, k: 'THE PAGE’S OWN ARITHMETIC', v: '156.90% vs 122.34%', s: 'Footnote 5: the ratio excludes Treasuries used for structured financing, so it cannot be reproduced from the headline figures.', col: C.flag }] },
   ], [[TN, C.pass, .3]], [['A reconciliation gap, not a claim of over-issuance: bridged supply can double count.', 2.5, 7.0]]) };
-// 09 / 10 | beats waiting for a live capture: loud red placeholders, never a redrawn screen
-function pending(title, line, lt) {
-  const d = DEST(); g.save(); rr(d.x, d.y, d.w, d.h, 12 * u); g.fillStyle = '#2a0d0d'; g.fill(); g.strokeStyle = C.red; g.lineWidth = 5 * u; g.setLineDash([22 * u, 14 * u]); g.stroke(); g.restore();
-  text('PLACEHOLDER', d.x + d.w / 2, d.y + d.h * .36, 96 * u, { align: 'center', weight: 700, color: C.red });
-  text(title, d.x + d.w / 2, d.y + d.h * .5, 46 * u, { align: 'center', weight: 600, color: C.ink });
-  para(line, d.x + 80 * u, d.y + d.h * .62, 30 * u, d.w - 160 * u, { color: C.mute, align: 'left' });
-  caption('PLACEHOLDER: replace with a live capture before final assembly.', lt, .2, 99, { color: C.red });
-}
-S.s09 = { draw(lt) { pending('USDY investigation', 'Capture the reworked USDY row (adjusted circulating supply vs issuer outstanding, with the residual) from https://reckon-app.up.railway.app once deployed.', lt); } };
-S.s10 = { draw(lt) { pending('Holdings tab', 'Capture the Holdings tab (wallet balance, value, frozen status, risk flags per holding) from https://reckon-app.up.railway.app once deployed.', lt); } };
+// 09 | USDY investigation (live capture: reworked row, the investigation document, the Stellar lead)
+S.s09 = { draw: segShot([
+  { t0: 0, t1: 3.6, img: 'usdy-flag1', cam: [[0, 544, 110, 1088]], hl: [{ t0: .3, t1: 3.4, box: [0, 6, 1088, 128], col: C.flag }],
+    co: [{ t0: .3, t1: 3.5, k: 'AFTER THE ADJUSTMENTS', v: '+$406,154,709', s: 'Residual (+20.6%) after 0 locked in bridges, 0 at Ondo-listed addresses and 0 wrapper double counts.', col: C.flag }] },
+  { t0: 3.6, t1: 6.4, img: 'usdy-doc', cam: [[0, 450, 560, 900]], hl: [{ t0: .3, t1: 2.6, box: [0, 590, 1280, 34], col: C.accent }],
+    co: [{ t0: .2, t1: 2.7, k: 'THE INVESTIGATION', v: 'Tested in order', s: 'Bridged supply counted twice closes 0 tokens (under 1%). Written down with sources.', col: C.accent }] },
+  { t0: 6.4, t1: 9.6, img: 'usdy-flag1', cam: [[0, 544, 110, 1088]], hl: [{ t0: .3, t1: 3.0, box: [0, 88, 1088, 40], col: C.hold }],
+    co: [{ t0: .3, t1: 3.1, k: 'CANDIDATES, NOT SUBTRACTED', v: '447,289,749 tokens', s: 'sit on two Stellar accounts. Controller unknown; not subtracted from the residual.', col: C.hold }] },
+  ], [['candidates only · controller unknown', C.hold, 6.5], [TN, C.pass, .3, 3.5]], [['Each explanation tested. The gap stays unexplained, and the report says so.', 3.8, 9.3]]) };
+// 10 | Holdings tab (built-in example addresses only: public chain data, labelled as examples)
+S.s10 = { draw: segShot([
+  { t0: 0, t1: 2.4, img: 'holdings-both', cam: [[0, 640, 360, 1100]], hl: [{ t0: .3, t1: 2.3, box: [96, 355, 1088, 120], col: C.accent }],
+    co: [{ t0: .3, t1: 2.4, k: 'HOLDINGS', v: 'Paste public addresses', s: 'Balance, value, frozen state and risk flags. No wallet connection, no signing.', col: C.accent }] },
+  { t0: 2.4, t1: 5.2, img: 'holdings-both', cam: [[0, 640, 360, 1100], [.5, 560, 860, 900]], hl: [{ t0: .6, t1: 2.7, box: [117, 790, 1046, 160], col: C.pass }],
+    co: [{ t0: .5, t1: 2.8, k: 'EXAMPLE USTB HOLDER', v: '110,486.37 USTB', s: '$1,247,741 at 11.2932 · not frozen · 99.95% of USTB’s Solana supply.', col: C.pass }] },
+  { t0: 5.2, t1: 9.6, img: 'holdings-both', cam: [[0, 560, 1990, 900], [2.2, 617, 2640, 1000]], hl: [{ t0: 2.4, t1: 4.3, box: [117, 2505, 1046, 312], col: C.flag }],
+    co: [{ t0: .2, t1: 2.0, k: 'EXAMPLE USDY HOLDER', v: '833,809.92 USDY', s: '$962,648 at 1.1545 · not frozen · 12.24% of USDY’s Solana supply.', col: C.pass },
+         { t0: 2.4, t1: 4.3, k: 'FINDINGS FOLLOW THE HOLDING', v: 'Same flags, same row', s: 'The USDY residual and the footnote-5 finding appear under the position.', col: C.flag }] },
+  ], [['example addresses · public chain data · owner unknown', C.hold, .3]], [['Read-only. The address list stays in the browser.', .4, 4.0]]) };
 // 11 | frontier (live tab)
 S.s11 = { draw: segShot([
   { t0: 0, t1: 3.6, img: 'frontier', cam: [[0, 640, 600, 1180]], hl: [],
