@@ -142,8 +142,9 @@ const TN = 'live · testnet (Sepolia test USDC)';
 const S = {};
 // 01 | hook
 S.s01 = { draw(lt) {
-  const x = P ? 70 * u : 150 * u, y0 = H * (P ? .30 : .30), sz = (P ? 104 : 120) * u, maxW = W - x * 2;
+  const x = P ? 70 * u : 150 * u, y0 = H * (P ? .30 : .30), maxW = W - x * 2;
   const l1 = 'On chain, a token says one thing.', l2 = 'Its issuer says another.';
+  const sz = P ? 104 * u : fit(l1, 120 * u, maxW - 30 * u, F.d, 600);
   const n1 = Math.floor(clamp(lt - .3) * 38), n2 = Math.floor(Math.max(0, lt - 1.9) * 36);
   const t1 = l1.slice(0, n1), t2 = l2.slice(0, n2);
   if (P) { para(t1, x, y0, sz, maxW, { weight: 600, lh: 1.15 }); para(t2, x, y0 + 300 * u, sz, maxW, { weight: 600, color: C.flag, lh: 1.15 }); }
