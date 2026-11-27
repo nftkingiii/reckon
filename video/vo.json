@@ -1,0 +1,14 @@
+[
+ {"id":"s01","vo":"On chain, a token says one thing. Its issuer says another. Who checks?"},
+ {"id":"s02","vo":"Built for teams that hold tokenized Treasuries: asset managers, custodians, compliance."},
+ {"id":"s03","vo":"Every fifteen minutes it reads three funds on Solana: USTB, BUIDL and USDY."},
+ {"id":"s04","vo":"Every row says what was read, from where, and whether it matched. Cannot check is a result too."},
+ {"id":"s05","vo":"Every hour it buys checks through Telegraph, with test USDC on Sepolia: five sanctions screens with receipts, an SEC filing check, and a supply read from Plumb, our own miner."},
+ {"id":"s06","vo":"USTB reconciles exactly on Solana, Ethereum and Plume, and network values land within two dollars of the reported assets. Reckon also lists what it cannot see: the audit, and custody."},
+ {"id":"s07","vo":"BUIDL has no issuer data page, so Reckon says: cannot check."},
+ {"id":"s08","vo":"USDY is flagged: twenty point six percent above the issuer's figure. A gap, not a claim of over-issuance."},
+ {"id":"s09","vo":"After every adjustment, a residual remains. Each explanation is tested in turn. Two Stellar accounts are candidates whose controller is unknown, and nothing is subtracted."},
+ {"id":"s10","vo":"Holdings checks the addresses you hold. These are public examples: balance, value, frozen state, and the findings that follow."},
+ {"id":"s11","vo":"We asked three Claude models five USTB questions, with tools off. Zero of fifteen were exact. They cannot know. Reckon can. One run each, Claude models only."},
+ {"id":"s12","vo":"Reckon reads and compares. It does not audit, and gives no advice. Live now, link on screen."}
+]

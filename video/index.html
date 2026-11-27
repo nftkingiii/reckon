@@ -9,15 +9,13 @@ html,body{margin:0;background:#0b1017}canvas{display:block;max-width:100vw;max-h
 </head><body>
 <canvas id="c"></canvas>
 <script src="lib/motion.js"></script>
+<script src="timeline.js"></script>
 <script>
 const Q = new URLSearchParams(location.search);
 const W = +(Q.get('w') || 1920), H = +(Q.get('h') || 1080);
 const L = layout(W, H), u = L.u, P = L.portrait;
 // 16:9 master. Start times (bar = 2.4 s). The 9:16 cut re-uses shots as segments [shot, from, to] in that shot's own time.
-const FROM = { s01: 0, s02: 4.8, s03: 9.6, s04: 16.8, s05: 24.0, s06: 36.0, s07: 48.0, s08: 52.8, s09: 60.0, s10: 69.6, s11: 79.2, s12: 91.2 };
-const END = 98.4;
-const VSEG = [['s01', 0, 4.8], ['s06', 0, 7.2], ['s08', 0, 7.2], ['s11', 0, 7.2], ['s12', 0, 3.6]];
-const VDUR = VSEG.reduce((a, s) => a + s[2] - s[1], 0);
+const FROM = TL.FROM, END = TL.END, VSEG = TL.VSEG, VDUR = TL.VDUR;
 window.FILM = { w: W, h: H, dur: P ? VDUR : END, fps: 30 };
 // Placeholders for beats still to be captured from the live site. Set false only after the real capture is wired in.
 const PENDING = { usdyInv: false, holdings: false };
@@ -131,10 +129,12 @@ function segShot(segs, chips, caps) {
     const adj = P && sg.camV ? sg.camV : null;
     const cam = adj ? (() => { const [vx, vy, vw] = trackN(rl, sg.camV.map(k => [k[0], k.slice(1)]), ...SPRINGS.base); return { cx: vx, cy: vy, w: vw }; })() : { cx, cy, w: cw };
     const T = view(sg.img, cam, d);
-    (sg.hl || []).forEach(h => hbox(T, d, { x: h.box[0], y: h.box[1], w: h.box[2], h: h.box[3] }, h.col || C.accent, win(rl, h.t0, h.t1)));
-    (sg.co || []).forEach(c => callout(rl, c));
+    const lastSeg = sg === segs[segs.length - 1], segLen = sg.t1 - sg.t0, B = segs[segs.length - 1].t1;
+    const hold = t1 => lastSeg && t1 >= segLen - .3 ? 1e9 : t1;   // items that end with the shot stay while the shot is stretched for the voice
+    (sg.hl || []).forEach(h => hbox(T, d, { x: h.box[0], y: h.box[1], w: h.box[2], h: h.box[3] }, h.col || C.accent, win(rl, h.t0, hold(h.t1))));
+    (sg.co || []).forEach(c => callout(rl, { ...c, t1: hold(c.t1) }));
     chipsRow(lt, chips); chipsV(lt, chips);
-    (caps || []).forEach(c => caption(c[0], lt, c[1], c[2]));
+    (caps || []).forEach(c => caption(c[0], lt, c[1], c[2] >= B - .4 ? 1e9 : c[2]));
   };
 }
 const TN = 'live · testnet (Sepolia test USDC)';

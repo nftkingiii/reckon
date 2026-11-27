@@ -20,11 +20,14 @@ if (A.music) {
   chains.push(`[${idx}:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=${A['music-vol'] || .5},adelay=${d}|${d},afade=t=out:st=${Math.max(0, vdur - fade)}:d=${fade}[m]`);
   mixes.push('[m]'); idx++;
 }
-if (A.sfx) { inputs.push('-i', A.sfx); chains.push(`[${idx}:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=${A['sfx-vol'] || 1}[s]`); mixes.push('[s]'); idx++; }
+if (A.sfx) { inputs.push('-i', A.sfx); chains.push(`[${idx}:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,volume=${A['sfx-vol'] || 1}[s]`); mixes.push('[s]'); idx++; }
 if (A.voice) {
   inputs.push('-i', A.voice);
-  chains.push(`[${idx}:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=${A['voice-vol'] || 1},asplit=2[v][vk]`); idx++;
-  if (A.music) {   // duck the music under the voice
+  chains.push(`[${idx}:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,volume=${A['voice-vol'] || 1},asplit=2[v][vk]`); idx++;
+  if (A.duck === 'sfx' && !A.music) {   // duck the synthesized SFX bed under the voice
+    const m = chains.findIndex(c => c.endsWith('[s]')); chains[m] = chains[m].replace(/\[s\]$/, '[s0]');
+    chains.push('[s0][vk]sidechaincompress=threshold=0.02:ratio=6:attack=15:release=300:makeup=1[s]');
+  } else if (A.music) {   // duck the music under the voice
     const m = chains.findIndex(c => c.endsWith('[m]')); chains[m] = chains[m].replace(/\[m\]$/, '[m0]');
     chains.push('[m0][vk]sidechaincompress=threshold=0.03:ratio=8:attack=20:release=350[m]');
   } else chains.push('[vk]anullsink');

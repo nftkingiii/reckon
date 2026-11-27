@@ -1,6 +1,7 @@
 // Builds cues.json (16:9) and cues-v.json (9:16) from shot-local cue times. Cue time = visual contact - 0.03 s.
-import { writeFileSync } from 'node:fs';
-const FROM = { s01: 0, s02: 4.8, s03: 9.6, s04: 16.8, s05: 24.0, s06: 36.0, s07: 48.0, s08: 52.8, s09: 60.0, s10: 69.6, s11: 79.2, s12: 91.2 };
+import { writeFileSync, readFileSync } from 'node:fs';
+const TL = JSON.parse(readFileSync('timeline.json', 'utf8'));
+const FROM = TL.FROM;
 const c = (t, type, vol = .4, pitch = 1) => ({ t, type, vol, pitch });
 const typeRun = (t0, n, step, base = .9) => Array.from({ length: n }, (_, i) => c(+(t0 + i * step + (i % 3) * .015).toFixed(3), 'type', .28, base + (i % 4) * .1));
 const sh = {
@@ -15,12 +16,12 @@ const sh = {
   s11: [c(.27, 'click', .35), c(3.57, 'click', .4), c(7.17, 'click', .4), c(7.35, 'chime', .3), c(9.57, 'click', .4)],
   s12: [c(.47, 'sparkle', .3), c(1.27, 'success', .45)],
 };
-const END = 98.4;
+const END = TL.END;
 const bars = []; for (let t = 4.8; t < END - 1; t += 2.4) bars.push(c(+t.toFixed(2), 'thump', .14));
 const flat = Object.entries(sh).flatMap(([k, a]) => a.map(x => ({ ...x, t: +(FROM[k] + x.t).toFixed(3) })));
 const all = [...flat, ...bars].filter(x => x.t >= 0).sort((a, b) => a.t - b.t);
 writeFileSync('cues.json', JSON.stringify(all, null, 1));
-const VSEG = [['s01', 0, 4.8], ['s06', 0, 7.2], ['s08', 0, 7.2], ['s11', 0, 7.2], ['s12', 0, 3.6]];
+const VSEG = TL.VSEG;
 let off = 0; const v = [];
 for (const [id, f, to] of VSEG) { for (const x of sh[id] || []) if (x.t >= f && x.t < to) v.push({ ...x, t: +(off + x.t - f).toFixed(3) }); off += to - f; }
 for (let t = 4.8; t < off - .5; t += 2.4) v.push(c(+t.toFixed(2), 'thump', .14));
