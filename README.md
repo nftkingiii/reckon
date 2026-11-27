@@ -4,6 +4,8 @@ Reckon checks tokenized treasury funds on Solana against what their issuers and 
 
 Live: https://reckon-app.up.railway.app
 
+Walkthrough video: https://youtu.be/HcW8KlYMs-0
+
 ## What it watches
 
 | Asset | Solana mint | What can be checked |
